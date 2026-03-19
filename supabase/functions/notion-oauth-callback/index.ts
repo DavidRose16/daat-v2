@@ -1,7 +1,7 @@
 Deno.serve(async (req) => {
   const integration = "notion";
-  const successUrl = `http://localhost:8080/connect?integration=${integration}&status=success`;
-  const errorUrl = `http://localhost:8080/connect?integration=${integration}&status=error`;
+  const successUrl = `https://daatview.com/connect?integration=${integration}&status=success`;
+  const errorUrl = `https://daatview.com/connect?integration=${integration}&status=error`;
 
   try {
     const url = new URL(req.url);
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
     const clientId = Deno.env.get("NOTION_CLIENT_ID")!;
     const clientSecret = Deno.env.get("NOTION_CLIENT_SECRET")!;
-    const redirectUri = Deno.env.get("NOTION_REDIRECT_URI")!;
+    const redirectUri = "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/notion-oauth-callback";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 

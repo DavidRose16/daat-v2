@@ -1,6 +1,5 @@
 Deno.serve(async (_req) => {
   const clientId = Deno.env.get("NOTION_CLIENT_ID")!;
-  const redirectUri = Deno.env.get("NOTION_REDIRECT_URI")!;
 
   const state = crypto.randomUUID();
 
@@ -8,7 +7,7 @@ Deno.serve(async (_req) => {
     client_id: clientId,
     response_type: "code",
     owner: "user",
-    redirect_uri: redirectUri,
+    redirect_uri: "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/notion-oauth-callback",
     state,
   });
 

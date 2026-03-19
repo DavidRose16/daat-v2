@@ -1,6 +1,6 @@
 Deno.serve(async (_req) => {
   const clientId = Deno.env.get("GOOGLE_CLIENT_ID")!;
-  const redirectUri = Deno.env.get("GOOGLE_REDIRECT_URI")!;
+  const redirectUri = "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/google-oauth-callback";
 
   const state = crypto.randomUUID();
 

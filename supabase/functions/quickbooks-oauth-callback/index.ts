@@ -1,7 +1,7 @@
 Deno.serve(async (req) => {
   const integration = "quickbooks";
-  const successUrl = `http://localhost:8080/connect?integration=${integration}&status=success`;
-  const errorUrl = `http://localhost:8080/connect?integration=${integration}&status=error`;
+  const successUrl = `https://daatview.com/connect?integration=${integration}&status=success`;
+  const errorUrl = `https://daatview.com/connect?integration=${integration}&status=error`;
 
   try {
     const url = new URL(req.url);
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
     const clientId = Deno.env.get("QUICKBOOKS_CLIENT_ID")!;
     const clientSecret = Deno.env.get("QUICKBOOKS_CLIENT_SECRET")!;
-    const redirectUri = Deno.env.get("QUICKBOOKS_REDIRECT_URI")!;
+    const redirectUri = "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/quickbooks-oauth-callback";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 

@@ -1,6 +1,6 @@
 Deno.serve(async (_req) => {
   const clientId = Deno.env.get("QUICKBOOKS_CLIENT_ID")!;
-  const redirectUri = Deno.env.get("QUICKBOOKS_REDIRECT_URI")!;
+  const redirectUri = "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/quickbooks-oauth-callback";
 
   const state = crypto.randomUUID();
 

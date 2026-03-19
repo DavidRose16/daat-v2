@@ -1,7 +1,7 @@
 Deno.serve(async (req) => {
   const integration = "google";
-  const successUrl = `https://daatview.com/connect?integration=${integration}&status=success`;
-  const errorUrl = `https://daatview.com/connect?integration=${integration}&status=error`;
+  const successUrl = `https://daatview.com?integration=${integration}&status=success`;
+  const errorUrl = `https://daatview.com?integration=${integration}&status=error`;
 
   try {
     const url = new URL(req.url);

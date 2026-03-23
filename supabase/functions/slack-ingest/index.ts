@@ -28,6 +28,8 @@ Deno.serve(async (_req) => {
 
     let totalIngested = 0;
     let totalErrors = 0;
+    const seenIds = new Set<string>();
+    const fetchedChannelIds = new Set<string>();
 
     // 2. List public and private channels
     const channels: Array<{ id: string; name: string; isPrivate: boolean }> =
@@ -62,6 +64,7 @@ Deno.serve(async (_req) => {
     for (const channel of channels) {
       const channelType = channel.isPrivate ? "private" : "public";
       let historyCursor: string | undefined;
+      let channelFullyFetched = true;
 
       do {
         const params = new URLSearchParams({
@@ -73,9 +76,9 @@ Deno.serve(async (_req) => {
           `https://slack.com/api/conversations.history?${params}`,
           { headers: slackHeaders },
         );
-        if (!histRes.ok) break;
+        if (!histRes.ok) { channelFullyFetched = false; break; }
         const histData = await histRes.json();
-        if (!histData.ok) break; // e.g. not_in_channel
+        if (!histData.ok) { channelFullyFetched = false; break; } // e.g. not_in_channel
 
         for (const msg of histData.messages ?? []) {
           const ts: string = msg.ts;
@@ -85,6 +88,7 @@ Deno.serve(async (_req) => {
           if (msg.thread_ts && msg.thread_ts !== ts) continue;
 
           const sourceRecordId = `${channel.id}:${ts}`;
+          seenIds.add(sourceRecordId);
           const replyCount: number = msg.reply_count ?? 0;
           const isThread = replyCount > 0;
           const sentAt = new Date(parseFloat(ts) * 1000).toISOString();
@@ -203,10 +207,27 @@ Deno.serve(async (_req) => {
         historyCursor =
           histData.response_metadata?.next_cursor || undefined;
       } while (historyCursor);
+
+      if (channelFullyFetched) fetchedChannelIds.add(channel.id);
     }
 
+    // 4. Reconcile: delete signals from fetched channels that no longer exist
+    const reconcileRes = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/reconcile_slack_signals`,
+      {
+        method: "POST",
+        headers: sbHeaders,
+        body: JSON.stringify({
+          p_owner_id: "default",
+          p_seen_ids: Array.from(seenIds),
+          p_fetched_channel_ids: Array.from(fetchedChannelIds),
+        }),
+      },
+    );
+    const deleted = reconcileRes.ok ? await reconcileRes.json() : null;
+
     return new Response(
-      JSON.stringify({ ingested: totalIngested, errors: totalErrors }),
+      JSON.stringify({ ingested: totalIngested, errors: totalErrors, deleted }),
       { headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {

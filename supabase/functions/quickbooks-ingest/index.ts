@@ -79,6 +79,7 @@ Deno.serve(async (_req) => {
 
     let totalIngested = 0;
     let totalErrors = 0;
+    const seenIds = new Set<string>();
 
     // 3. Fetch and ingest each entity type
     for (const entityType of ["Purchase", "Bill", "Invoice"] as const) {
@@ -98,6 +99,8 @@ Deno.serve(async (_req) => {
           queryData?.QueryResponse?.[entityType] ?? [];
 
         for (const entity of entities) {
+          const sourceRecordId = `${entityType}:${entity.Id}`;
+          seenIds.add(sourceRecordId);
           const mapped = mapQBEntity(entity, entityType);
           const rpcRes = await fetch(
             `${supabaseUrl}/rest/v1/rpc/ingest_quickbooks_signal`,
@@ -106,7 +109,7 @@ Deno.serve(async (_req) => {
               headers: sbHeaders,
               body: JSON.stringify({
                 p_owner_id: "default",
-                p_source_record_id: `${entityType}:${entity.Id}`,
+                p_source_record_id: sourceRecordId,
                 p_raw_content: entity,
                 ...mapped,
               }),
@@ -124,8 +127,23 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // 4. Reconcile: delete signals no longer in QuickBooks
+    const reconcileRes = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/reconcile_signals`,
+      {
+        method: "POST",
+        headers: sbHeaders,
+        body: JSON.stringify({
+          p_source: "quickbooks",
+          p_owner_id: "default",
+          p_seen_ids: Array.from(seenIds),
+        }),
+      },
+    );
+    const deleted = reconcileRes.ok ? await reconcileRes.json() : null;
+
     return new Response(
-      JSON.stringify({ ingested: totalIngested, errors: totalErrors }),
+      JSON.stringify({ ingested: totalIngested, errors: totalErrors, deleted }),
       { headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {

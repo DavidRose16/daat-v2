@@ -34,6 +34,7 @@ Deno.serve(async (_req) => {
 
     let totalIngested = 0;
     let totalErrors = 0;
+    const seenIds = new Set<string>();
 
     // 2. Search all pages (paginated)
     let startCursor: string | undefined;
@@ -59,6 +60,7 @@ Deno.serve(async (_req) => {
         if (parentType === "database_id") continue;
 
         const pageId: string = page.id;
+        seenIds.add(pageId);
 
         // 3. Fetch all blocks for this page (paginated)
         const allBlocks: Record<string, unknown>[] = [];
@@ -150,8 +152,23 @@ Deno.serve(async (_req) => {
       startCursor = searchData.has_more ? searchData.next_cursor : undefined;
     } while (startCursor);
 
+    // 3. Reconcile: delete signals no longer in Notion
+    const reconcileRes = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/reconcile_signals`,
+      {
+        method: "POST",
+        headers: sbHeaders,
+        body: JSON.stringify({
+          p_source: "notion",
+          p_owner_id: "default",
+          p_seen_ids: Array.from(seenIds),
+        }),
+      },
+    );
+    const deleted = reconcileRes.ok ? await reconcileRes.json() : null;
+
     return new Response(
-      JSON.stringify({ ingested: totalIngested, errors: totalErrors }),
+      JSON.stringify({ ingested: totalIngested, errors: totalErrors, deleted }),
       { headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {

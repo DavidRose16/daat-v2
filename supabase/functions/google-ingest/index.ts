@@ -119,8 +119,10 @@ Deno.serve(async (_req) => {
     // 5. Ingest each unique app
     let totalIngested = 0;
     let totalErrors = 0;
+    const seenIds = new Set<string>();
 
     for (const [clientId, app] of appMap) {
+      seenIds.add(clientId);
       const scopesArr = Array.from(app.scopes);
       const userIdsArr = app.userIds;
       const rawContent = {
@@ -154,8 +156,23 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // 6. Reconcile: delete signals no longer in Google
+    const reconcileRes = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/reconcile_signals`,
+      {
+        method: "POST",
+        headers: sbHeaders,
+        body: JSON.stringify({
+          p_source: "google",
+          p_owner_id: "default",
+          p_seen_ids: Array.from(seenIds),
+        }),
+      },
+    );
+    const deleted = reconcileRes.ok ? await reconcileRes.json() : null;
+
     return new Response(
-      JSON.stringify({ ingested: totalIngested, errors: totalErrors }),
+      JSON.stringify({ ingested: totalIngested, errors: totalErrors, deleted }),
       { headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {

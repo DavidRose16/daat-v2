@@ -106,16 +106,7 @@ One table: `comprehensions`. Full doctrine, JSONB schema, and prompt guidance li
 - **The comprehend function reads from and writes to the `comprehensions` table only.** It joins to `signals_core` and source-specific tables to build context for Claude, but it never inserts, updates, or deletes rows in those tables.
 - The `comprehension` JSONB column follows a versioned schema (current: v1). See `docs/layers/layer-2-comprehension.md` for the full schema.
 
-### JSONB schema (v1 — top-level keys)
-
-| Key | Type | Description |
-|---|---|---|
-| `version` | integer | Always `1` |
-| `summary` | string | One-paragraph natural language summary |
-| `entities` | array | People, orgs, systems, accounts mentioned |
-| `topics` | array of strings | Subject-matter tags |
-| `significance` | string | `routine`, `notable`, or `critical` |
-| `archetype_fields` | object | Source-specific structured fields (varies by content archetype) |
+JSONB schema not yet finalized. See docs/layers/layer-2-comprehension.md.
 
 ---
 

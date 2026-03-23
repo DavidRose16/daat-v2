@@ -85,7 +85,7 @@ Each connects back to `signals_core` via `signal_id` as a foreign key with casca
 
 ## Layer 2 — Comprehension
 
-One table: `comprehensions`. Full doctrine, JSONB schema, and prompt guidance live in `docs/layers/layer-2-comprehension.md`.
+One table: `comprehensions_assembly`. Full doctrine, JSONB schema, and prompt guidance live in `docs/layers/layer-2-comprehension.md`.
 
 | Column | Description |
 |---|---|
@@ -103,7 +103,7 @@ One table: `comprehensions`. Full doctrine, JSONB schema, and prompt guidance li
 - One comprehension per signal. Enforced by unique constraint on `signal_id`.
 - A comprehension row is created with `status = 'pending'` when a signal arrives.
 - The comprehend function picks up pending rows, calls Claude, and writes the result back.
-- **The comprehend function reads from and writes to the `comprehensions` table only.** It joins to `signals_core` and source-specific tables to build context for Claude, but it never inserts, updates, or deletes rows in those tables.
+- **The comprehend function reads from and writes to the `comprehensions_assembly` table only.** It joins to `signals_core` and source-specific tables to build context for Claude, but it never inserts, updates, or deletes rows in those tables.
 - The `comprehension` JSONB column follows a versioned schema (current: v1). See `docs/layers/layer-2-comprehension.md` for the full schema.
 
 JSONB schema not yet finalized. See docs/layers/layer-2-comprehension.md.

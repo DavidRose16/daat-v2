@@ -83,9 +83,9 @@ Each connects back to `signals_core` via `signal_id` as a foreign key with casca
 
 ---
 
-## Layer 2 — Comprehensions
+## Layer 2 — Comprehension
 
-One table: `comprehensions`
+One table: `comprehensions`. Full doctrine, JSONB schema, and prompt guidance live in `docs/layers/layer-2-comprehension.md`.
 
 | Column | Description |
 |---|---|
@@ -98,7 +98,24 @@ One table: `comprehensions`
 | `produced_at` | timestamptz, nullable — when Claude ran |
 | `created_at` | timestamptz |
 
-**How it works:** A comprehension row is created immediately when a signal arrives, with `status = 'pending'` and `comprehension = null`. The comprehension job reads all pending rows, calls Claude on each signal, and fills in `comprehension`, `model`, `produced_at`, and updates `status`. One row per signal — enforced by unique constraint on `signal_id`.
+### Doctrine (summary)
+
+- One comprehension per signal. Enforced by unique constraint on `signal_id`.
+- A comprehension row is created with `status = 'pending'` when a signal arrives.
+- The comprehend function picks up pending rows, calls Claude, and writes the result back.
+- **The comprehend function reads from and writes to the `comprehensions` table only.** It joins to `signals_core` and source-specific tables to build context for Claude, but it never inserts, updates, or deletes rows in those tables.
+- The `comprehension` JSONB column follows a versioned schema (current: v1). See `docs/layers/layer-2-comprehension.md` for the full schema.
+
+### JSONB schema (v1 — top-level keys)
+
+| Key | Type | Description |
+|---|---|---|
+| `version` | integer | Always `1` |
+| `summary` | string | One-paragraph natural language summary |
+| `entities` | array | People, orgs, systems, accounts mentioned |
+| `topics` | array of strings | Subject-matter tags |
+| `significance` | string | `routine`, `notable`, or `critical` |
+| `archetype_fields` | object | Source-specific structured fields (varies by content archetype) |
 
 ---
 

@@ -26,38 +26,25 @@ Handling Uncertainty: If something appears important but is unclear or incomplet
 
 ---
 
-## JSONB Schema
+## JSONB Schema (v1)
 
-Version: v1
-
-```jsonc
 {
-  "schema_version": "v1",
-
-  // Summary of what this signal contains, 1-2 sentences
-  "summary": "string",
-
-  // Typed extraction arrays — only include arrays that are meaningfully present
-  "workflows":  [{ "label": "string", "reference": "string" }],
-  "problems":   [{ "label": "string", "reference": "string" }],
-  "tools":      [{ "label": "string", "reference": "string" }],
-  "decisions":  [{ "label": "string", "reference": "string" }],
-  "people":     [{ "label": "string", "reference": "string" }],
-  "status":     [{ "label": "string", "reference": "string" }],
-
-  // What cannot be confidently determined from this signal
-  "uncertainty": ["string"],
-
-  // Meaningful context, structure, or implications that do not fit into structured fields
-  "tacit": ["string"]
+  "signal_purpose": "short groupable phrase — what this signal is trying to do",
+  "context": {
+    "source": "slack | notion | quickbooks | google",
+    "primary_label": "main identifier — channel name, page title, vendor name",
+    "secondary": "optional — section path, thread hint, transaction type. null if not useful"
+  },
+  "workflows":  [{ "label": "short groupable phrase", "grounding": "reference to signal" }],
+  "problems":   [{ "label": "short groupable phrase", "grounding": "reference to signal" }],
+  "tools":      [{ "label": "tool name", "grounding": "reference to signal" }],
+  "decisions":  [{ "label": "short groupable phrase", "grounding": "reference to signal" }],
+  "people":     [{ "label": "name or reference", "grounding": "reference to signal" }],
+  "status":     [{ "label": "current state of something", "grounding": "reference to signal" }],
+  "summary": "few sentences — what happens in this signal",
+  "uncertainty": "free prose — what Claude could not confidently determine",
+  "tacit": "free prose — implied organizational knowledge that does not fit the structured fields"
 }
-```
-
-Field definitions:
-- **label** — short, groupable name for the extracted item (e.g. "quarterly close process", "Stripe integration")
-- **reference** — quote, span, or pointer into the signal that grounds this extraction
-- **uncertainty** — list of statements about what is unclear, incomplete, or ambiguous in this signal
-- **tacit** — list of observations about implicit context, structure, or implications that are meaningful but do not belong in the typed arrays
 
 ---
 

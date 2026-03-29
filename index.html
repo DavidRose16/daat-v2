@@ -108,6 +108,17 @@ select.source-select:focus{border-color:#444}
 .controls-response.ok{border-color:#1a4d2e;color:#4ade80}
 .controls-response.err{border-color:#4d1a1a;color:#f87171}
 
+/* ── ingest button (per connection card) ── */
+.ingest-btn{margin-top:10px;padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .12s,border-color .12s}
+.ingest-btn:hover{color:#fff;border-color:#444}
+.ingest-btn:disabled{opacity:.4;cursor:not-allowed}
+.ingest-btn .spinner{width:10px;height:10px;border:2px solid #88888840;border-top-color:#888;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.ingest-btn.running .spinner{display:block}
+.card-ingest-response{margin-top:8px;padding:8px 10px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;font-size:10px;font-family:ui-monospace,monospace;color:#666;white-space:pre-wrap;word-break:break-all;display:none;max-height:120px;overflow-y:auto}
+.card-ingest-response.visible{display:block}
+.card-ingest-response.ok{border-color:#1a4d2e;color:#4ade80}
+.card-ingest-response.err{border-color:#4d1a1a;color:#f87171}
+
 /* ── error box ── */
 .section-error{padding:12px 14px;background:#1a0808;border:1px solid #4d1a1a;border-radius:7px;font-size:12px;color:#f87171;margin-top:4px;display:none}
 .section-error.visible{display:block}
@@ -304,10 +315,10 @@ function startCountdown(){
 // ── Section 1 — Connections ──────────────────────────────────────────────────
 
 const SOURCES = [
-  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8' },
-  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa' },
-  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80' },
-  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c' },
+  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8', ingestFn:'slack-ingest'      },
+  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa', ingestFn:'notion-ingest'     },
+  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80', ingestFn:'quickbooks-ingest' },
+  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c', ingestFn:'google-ingest'     },
 ];
 
 async function loadConnections(signalsBySource){
@@ -329,7 +340,7 @@ async function loadConnections(signalsBySource){
       return `<div class="card ${connected?'border-green':'border-red'}">
         <div class="card-head">
           <div class="card-name" style="color:${s.color}">${esc(s.key.charAt(0).toUpperCase()+s.key.slice(1))}</div>
-          <span class="badge ${connected?'badge-green':'badge-red'}">${connected?'CONNECTED':'NOT CONNECTED'}</span>
+          <span class="badge ${connected?'badge-green':'badge-red'}">${connected?'● Connected':'○ Not Connected'}</span>
         </div>
         <div class="card-body">
           ${conn ? `
@@ -358,11 +369,38 @@ async function loadConnections(signalsBySource){
             <span class="card-value prominent">${sigs.length}</span>
           </div>
         </div>
+        <button class="ingest-btn" id="ingest-btn-${s.key}" onclick="runIngest('${s.key}','${s.ingestFn}')">
+          <div class="spinner"></div>
+          <span>Run ${s.ingestFn}</span>
+        </button>
+        <div class="card-ingest-response" id="ingest-resp-${s.key}"></div>
       </div>`;
     }).join('');
   } catch(e){
     grid.innerHTML = '';
     showErr('err-connections', `Failed to load connections: ${e.message}`);
+  }
+}
+
+async function runIngest(sourceKey, fnName){
+  const btn = document.getElementById(`ingest-btn-${sourceKey}`);
+  const resp = document.getElementById(`ingest-resp-${sourceKey}`);
+  btn.disabled = true;
+  btn.classList.add('running');
+  resp.className = 'card-ingest-response visible';
+  resp.textContent = 'Running…';
+  try {
+    const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST' });
+    const body = await res.text();
+    resp.textContent = body;
+    resp.className = `card-ingest-response visible ${res.ok ? 'ok' : 'err'}`;
+    loadAll();
+  } catch(e){
+    resp.textContent = `Error: ${e.message}`;
+    resp.className = 'card-ingest-response visible err';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
   }
 }
 

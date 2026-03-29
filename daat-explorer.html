@@ -215,14 +215,20 @@ async function loadData() {
 
     SIGNALS = rows.map(r => {
       const core = Array.isArray(r.signals_core) ? r.signals_core[0] : r.signals_core;
+      const comprehension = r.comprehension;
+      const _field_counts = {};
+      for (const f of ['workflows','problems','tools','decisions','people','states']) {
+        _field_counts[f] = comprehension?.[f]?.length || 0;
+      }
       return {
         signal_id:         r.signal_id,
         comprehended_at:   r.comprehended_at,
         model:             r.model,
-        comprehension:     r.comprehension,
+        comprehension:     comprehension,
         source:            core?.source            || '',
         content_archetype: core?.content_archetype || '',
         ingested_at:       core?.ingested_at       || '',
+        _field_counts,
       };
     });
 

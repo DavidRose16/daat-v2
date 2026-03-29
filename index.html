@@ -1,187 +1,703 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Connect Integrations — DAAT</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DAAT v2 — Admin</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding-bottom:80px}
 
-    body {
-      background: #0f0f0f;
-      color: #e5e5e5;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
-    }
+/* ── header ── */
+.admin-header{background:#0f0f0f;border-bottom:1px solid #1e1e1e;padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-brand{font-size:13px;font-weight:600;color:#fff;letter-spacing:.04em}
+.header-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#2b1400;color:#f97316;border:1px solid #4d2800;letter-spacing:.04em}
+.header-right{display:flex;align-items:center;gap:16px}
+.refresh-countdown{font-size:11px;color:#444}
+.refresh-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;transition:color .12s,border-color .12s}
+.refresh-btn:hover{color:#fff;border-color:#444}
+.last-refreshed{font-size:11px;color:#333}
 
-    h1 {
-      font-size: 20px;
-      font-weight: 500;
-      color: #fff;
-      margin-bottom: 8px;
-      letter-spacing: -0.01em;
-    }
+/* ── layout ── */
+.page{padding:32px 32px 0}
+.section{margin-bottom:40px}
+.section-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#444;margin-bottom:14px}
 
-    .subtitle {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 48px;
-    }
+/* ── cards ── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:18px 20px;position:relative}
+.card.border-green{border-color:#1a4d2e}
+.card.border-red{border-color:#4d1a1a}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.card-name{font-size:14px;font-weight:600;color:#fff}
+.card-body{display:flex;flex-direction:column;gap:6px}
+.card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card-label{font-size:11px;color:#555;flex-shrink:0}
+.card-value{font-size:12px;color:#aaa;text-align:right;word-break:break-all}
+.card-value.prominent{color:#e5e5e5;font-weight:500}
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      width: 100%;
-      max-width: 640px;
-    }
+/* ── badges ── */
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.badge-green{background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e}
+.badge-red{background:#2b0d0d;color:#f87171;border:1px solid #4d1a1a}
+.badge-yellow{background:#2b2200;color:#fbbf24;border:1px solid #4d3800}
+.badge-blue{background:#0a1f2e;color:#38bdf8;border:1px solid #0e3248}
+.badge-purple{background:#1a0d2b;color:#a78bfa;border:1px solid #2e1a4d}
+.badge-gray{background:#1a1a1a;color:#888;border:1px solid #2a2a2a}
+.badge-orange{background:#2b1400;color:#f97316;border:1px solid #4d2800}
 
-    @media (max-width: 480px) {
-      .grid { grid-template-columns: 1fr; }
-    }
+/* ── stat strip ── */
+.stat-strip{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:0}
+.stat-card{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:14px 18px;min-width:120px;flex:1}
+.stat-num{font-size:24px;font-weight:700;color:#fff;letter-spacing:-.02em;line-height:1}
+.stat-lbl{font-size:11px;color:#555;margin-top:4px}
+.stat-sub{font-size:10px;color:#333;margin-top:2px}
 
-    .card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+/* ── pipeline section ── */
+.pipeline-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px}
 
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+/* ── run button ── */
+.run-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;font-weight:500;border-radius:7px;border:1px solid #1a4d2e;background:#0d2b1a;color:#4ade80;cursor:pointer;transition:background .12s,border-color .12s}
+.run-btn:hover{background:#122e1e;border-color:#2a6040}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+.run-btn .spinner{width:12px;height:12px;border:2px solid #4ade8040;border-top-color:#4ade80;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.run-btn.running .spinner{display:block}
+.run-btn.running .btn-text::after{content:'...'}
+.response-box{margin-top:10px;padding:12px 14px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:7px;font-size:11px;font-family:ui-monospace,monospace;color:#aaa;white-space:pre-wrap;word-break:break-all;display:none;max-height:200px;overflow-y:auto}
+.response-box.visible{display:block}
+.response-box.success{border-color:#1a4d2e;color:#4ade80}
+.response-box.error-resp{border-color:#4d1a1a;color:#f87171}
 
-    .card-name {
-      font-size: 15px;
-      font-weight: 500;
-      color: #fff;
-    }
+/* ── counts section ── */
+.counts-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:640px){.counts-layout{grid-template-columns:1fr}}
+.count-group{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px 18px}
+.count-group-title{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444;margin-bottom:12px}
+.count-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #161616}
+.count-row:last-child{border-bottom:none}
+.count-row-label{font-size:12px;color:#888;display:flex;align-items:center;gap:7px}
+.count-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.count-row-num{font-size:13px;font-weight:600;color:#e5e5e5}
+.count-bar-bg{height:2px;background:#1a1a1a;border-radius:1px;margin-top:3px}
+.count-bar-fill{height:2px;border-radius:1px;transition:width .3s}
 
-    .badge {
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.02em;
-    }
+/* ── activity table ── */
+.activity-table{width:100%;border-collapse:collapse}
+.activity-table th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444;padding:0 12px 10px;text-align:left;border-bottom:1px solid #1e1e1e}
+.activity-table td{padding:10px 12px;font-size:12px;color:#aaa;border-bottom:1px solid #161616;vertical-align:top}
+.activity-table tr:last-child td{border-bottom:none}
+.activity-table tr:hover td{background:#111;color:#ccc}
+.sig-id{font-family:ui-monospace,monospace;font-size:10px;color:#555}
+.purpose-cell{color:#ccc;max-width:320px}
 
-    .badge-success {
-      background: #0d2b1a;
-      color: #34d47a;
-      border: 1px solid #1a4d2e;
-    }
+/* ── test controls ── */
+.controls-layout{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px}
+.control-group{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:220px}
+.control-group-title{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444}
+select.source-select{background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;color:#e5e5e5;font-size:13px;padding:7px 10px;cursor:pointer;outline:none;width:100%}
+select.source-select:focus{border-color:#444}
+.danger-btn{padding:8px 14px;font-size:12px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#2b0d0d;color:#f87171;cursor:pointer;transition:background .12s}
+.danger-btn:hover{background:#3d1010}
+.danger-btn:disabled{opacity:.4;cursor:not-allowed}
+.action-btn{padding:8px 14px;font-size:12px;font-weight:500;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#ccc;cursor:pointer;transition:background .12s}
+.action-btn:hover{background:#222;color:#fff}
+.action-btn:disabled{opacity:.4;cursor:not-allowed}
+.controls-response{margin-top:8px;font-size:11px;font-family:ui-monospace,monospace;color:#888;padding:8px 10px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
+.controls-response.visible{display:block}
+.controls-response.ok{border-color:#1a4d2e;color:#4ade80}
+.controls-response.err{border-color:#4d1a1a;color:#f87171}
 
-    .badge-error {
-      background: #2b0d0d;
-      color: #f87171;
-      border: 1px solid #4d1a1a;
-    }
+/* ── error box ── */
+.section-error{padding:12px 14px;background:#1a0808;border:1px solid #4d1a1a;border-radius:7px;font-size:12px;color:#f87171;margin-top:4px;display:none}
+.section-error.visible{display:block}
 
-    .card-description {
-      font-size: 13px;
-      color: #888;
-      line-height: 1.5;
-    }
+/* ── skeleton / loading ── */
+.loading{color:#333;font-size:12px;padding:12px 0}
 
-    .connect-btn {
-      margin-top: 8px;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #fff;
-      background: #222;
-      border: 1px solid #333;
-      border-radius: 6px;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-      transition: background 0.15s, border-color 0.15s;
-    }
+@keyframes spin{to{transform:rotate(360deg)}}
 
-    .connect-btn:hover {
-      background: #2a2a2a;
-      border-color: #444;
-    }
-  </style>
+/* ── divider ── */
+.divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0}
+</style>
 </head>
 <body>
 
-  <h1>Integrations</h1>
-  <p class="subtitle">Connect your tools to start ingesting data.</p>
+<div class="admin-header">
+  <div class="header-left">
+    <span class="header-brand">DAAT v2</span>
+    <span class="header-badge">ADMIN</span>
+  </div>
+  <div class="header-right">
+    <span class="last-refreshed" id="last-refreshed"></span>
+    <span class="refresh-countdown" id="refresh-countdown"></span>
+    <button class="refresh-btn" onclick="loadAll()">Refresh now</button>
+  </div>
+</div>
 
-  <div class="grid" id="grid"></div>
+<div class="page">
 
-  <script>
-    const SUPABASE = "https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1";
+  <!-- ═══════════════════════ SECTION 1 — CONNECTIONS ═══════════════════════ -->
+  <div class="section">
+    <div class="section-title">Connections</div>
+    <div class="section-error" id="err-connections"></div>
+    <div class="cards-grid" id="connections-grid">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
 
-    const integrations = [
-      {
-        key: "quickbooks",
-        name: "QuickBooks",
-        description: "Financial transactions, vendors, and company data.",
-        url: `${SUPABASE}/quickbooks-oauth-start`,
-      },
-      {
-        key: "google",
-        name: "Google Workspace",
-        description: "Connected apps and access patterns across your domain.",
-        url: `${SUPABASE}/google-oauth-start`,
-      },
-      {
-        key: "slack",
-        name: "Slack",
-        description: "Conversations, channels, and team communication.",
-        url: `${SUPABASE}/slack-oauth-start`,
-      },
-      {
-        key: "notion",
-        name: "Notion",
-        description: "Pages, databases, and workspace documentation.",
-        url: `${SUPABASE}/notion-oauth-start`,
-      },
-    ];
+  <hr class="divider"/>
 
-    // Parse ?integration=X&status=Y from the URL
-    const params = new URLSearchParams(window.location.search);
-    const statusIntegration = params.get("integration");
-    const status = params.get("status"); // "success" | "error"
+  <!-- ═══════════════════════ SECTION 2 — PIPELINE STATUS ═══════════════════ -->
+  <div class="section">
+    <div class="section-title">Pipeline Status — Comprehend</div>
+    <div class="section-error" id="err-pipeline"></div>
+    <div class="pipeline-grid" id="pipeline-stats">
+      <div class="loading">Loading…</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:4px">
+      <button class="run-btn" id="run-comprehend-btn" onclick="runComprend()">
+        <div class="spinner"></div>
+        <span class="btn-text">Run Comprehend (limit=10)</span>
+      </button>
+    </div>
+    <div class="response-box" id="comprehend-response"></div>
+  </div>
 
-    const grid = document.getElementById("grid");
+  <hr class="divider"/>
 
-    integrations.forEach(({ key, name, description, url }) => {
-      const card = document.createElement("div");
-      card.className = "card";
+  <!-- ═══════════════════════ SECTION 3 — DATA COUNTS ════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Data Counts</div>
+    <div class="section-error" id="err-counts"></div>
+    <div class="counts-layout" id="counts-layout">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
 
-      let badgeHtml = "";
-      if (statusIntegration === key && status === "success") {
-        badgeHtml = `<span class="badge badge-success">Connected</span>`;
-      } else if (statusIntegration === key && status === "error") {
-        badgeHtml = `<span class="badge badge-error">Failed</span>`;
-      }
+  <hr class="divider"/>
 
-      card.innerHTML = `
-        <div class="card-header">
-          <span class="card-name">${name}</span>
-          ${badgeHtml}
+  <!-- ═══════════════════════ SECTION 4 — RECENT ACTIVITY ════════════════════ -->
+  <div class="section">
+    <div class="section-title">Recent Activity — Last 10 Comprehended</div>
+    <div class="section-error" id="err-activity"></div>
+    <div id="activity-container">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════ SECTION 5 — TEST CONTROLS ══════════════════════ -->
+  <div class="section">
+    <div class="section-title">Test Controls</div>
+    <div class="section-error" id="err-controls"></div>
+    <div class="controls-layout">
+
+      <div class="control-group" style="flex:0 0 auto">
+        <div class="control-group-title">Source Filter</div>
+        <select class="source-select" id="source-select">
+          <option value="all">All sources</option>
+          <option value="slack">Slack</option>
+          <option value="notion">Notion</option>
+          <option value="quickbooks">QuickBooks</option>
+          <option value="google">Google</option>
+        </select>
+      </div>
+
+      <div class="control-group" style="flex:1;min-width:260px">
+        <div class="control-group-title">Reset to Pending</div>
+        <div style="font-size:12px;color:#555;line-height:1.5">Deletes comprehensions_output rows and nulls comprehended_at in assembly for the selected source. Signals re-enter the queue.</div>
+        <button class="danger-btn" id="reset-btn" onclick="resetToPending()">Reset selected source to pending</button>
+        <div class="controls-response" id="reset-response"></div>
+      </div>
+
+      <div class="control-group" style="flex:1;min-width:260px">
+        <div class="control-group-title">Run Comprehend (source-filtered)</div>
+        <div style="font-size:12px;color:#555;line-height:1.5">Runs the comprehend function with limit=10. The function processes the full pending queue — source filter is not supported at the function level.</div>
+        <button class="action-btn" id="run-source-btn" onclick="runComprehendSource()">
+          Run comprehend → pending queue (limit=10)
+        </button>
+        <div class="controls-response" id="run-source-response"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
+const FN_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1';
+
+const BASE_HEADERS = {
+  'apikey': SB_ANON,
+  'Authorization': `Bearer ${SB_ANON}`,
+  'Content-Type': 'application/json',
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function esc(s){ return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function relTime(ts){
+  if(!ts) return '—';
+  const diff = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(diff/1000);
+  if(s < 60)  return `${s}s ago`;
+  if(s < 3600) return `${Math.floor(s/60)}m ago`;
+  if(s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function fmtTs(ts){
+  if(!ts) return '—';
+  return new Date(ts).toLocaleString();
+}
+
+function showErr(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearErr(id){
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.remove('visible');
+}
+
+async function sbGet(path, extraHeaders={}){
+  const res = await fetch(`${SB_URL}/rest/v1${path}`, {
+    headers: { ...BASE_HEADERS, ...extraHeaders },
+  });
+  const body = await res.json();
+  if(!res.ok) throw new Error(JSON.stringify(body));
+  return { data: body, headers: res.headers };
+}
+
+async function sbGetCount(path){
+  const res = await fetch(`${SB_URL}/rest/v1${path}`, {
+    headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' },
+  });
+  const cr = res.headers.get('content-range') || '';
+  const match = cr.match(/\/(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+// ── auto-refresh ──────────────────────────────────────────────────────────────
+
+const REFRESH_INTERVAL = 30;
+let countdown = REFRESH_INTERVAL;
+let timer = null;
+
+function startCountdown(){
+  clearInterval(timer);
+  countdown = REFRESH_INTERVAL;
+  timer = setInterval(()=>{
+    countdown--;
+    document.getElementById('refresh-countdown').textContent = `Auto-refresh in ${countdown}s`;
+    if(countdown <= 0){ loadAll(); }
+  }, 1000);
+}
+
+// ── Section 1 — Connections ──────────────────────────────────────────────────
+
+const SOURCES = [
+  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8' },
+  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa' },
+  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80' },
+  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c' },
+];
+
+async function loadConnections(signalsBySource){
+  clearErr('err-connections');
+  const grid = document.getElementById('connections-grid');
+  try {
+    const rows = await Promise.all(
+      SOURCES.map(s => sbGet(`/${s.table}?owner_id=eq.default&limit=1`).then(r=>r.data[0]||null))
+    );
+
+    grid.innerHTML = SOURCES.map((s, i) => {
+      const conn = rows[i];
+      const connected = !!conn;
+      const sigs = signalsBySource[s.key] || [];
+      const lastIngest = sigs.length > 0
+        ? sigs.reduce((a,b) => new Date(a.ingested_at) > new Date(b.ingested_at) ? a : b).ingested_at
+        : null;
+
+      return `<div class="card ${connected?'border-green':'border-red'}">
+        <div class="card-head">
+          <div class="card-name" style="color:${s.color}">${esc(s.key.charAt(0).toUpperCase()+s.key.slice(1))}</div>
+          <span class="badge ${connected?'badge-green':'badge-red'}">${connected?'CONNECTED':'NOT CONNECTED'}</span>
         </div>
-        <p class="card-description">${description}</p>
-        <a class="connect-btn" href="${url}">Connect</a>
-      `;
+        <div class="card-body">
+          ${conn ? `
+          <div class="card-row">
+            <span class="card-label">account</span>
+            <span class="card-value prominent">${esc(conn[s.nameField]||'—')}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">${esc(s.subField.replace(/_/g,' '))}</span>
+            <span class="card-value">${esc(conn[s.subField]||'—')}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">connected</span>
+            <span class="card-value">${fmtTs(conn.connected_at)}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">last synced</span>
+            <span class="card-value">${conn.last_synced_at ? relTime(conn.last_synced_at)+' · '+fmtTs(conn.last_synced_at) : '—'}</span>
+          </div>` : `<div class="card-row"><span class="card-label" style="color:#555">No connection record found</span></div>`}
+          <div class="card-row" style="margin-top:4px;padding-top:8px;border-top:1px solid #1a1a1a">
+            <span class="card-label">last ingested</span>
+            <span class="card-value">${lastIngest ? relTime(lastIngest) : '—'}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">signals</span>
+            <span class="card-value prominent">${sigs.length}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    grid.innerHTML = '';
+    showErr('err-connections', `Failed to load connections: ${e.message}`);
+  }
+}
 
-      grid.appendChild(card);
+// ── Section 2 — Pipeline Status ───────────────────────────────────────────────
+
+async function loadPipeline(assemblyPending){
+  clearErr('err-pipeline');
+  const statsEl = document.getElementById('pipeline-stats');
+  try {
+    const [outputCountRes, lastRunRes] = await Promise.all([
+      sbGetCount('/comprehensions_output?select=id'),
+      sbGet('/comprehensions_output?select=comprehended_at&order=comprehended_at.desc&limit=1'),
+    ]);
+
+    const totalCompleted = outputCountRes;
+    const lastRun = lastRunRes.data[0]?.comprehended_at || null;
+
+    const now = Date.now();
+    const tenMinMs = 10 * 60 * 1000;
+
+    const pending = assemblyPending.filter(r => {
+      if(!r.assembled_at) return true;                    // no assembled_at → treat as fresh pending
+      return (now - new Date(r.assembled_at).getTime()) < tenMinMs;
     });
-  </script>
 
+    const stalled = assemblyPending.filter(r => {
+      if(!r.assembled_at) return false;
+      return (now - new Date(r.assembled_at).getTime()) >= tenMinMs;
+    });
+
+    statsEl.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-num">${totalCompleted ?? '—'}</div>
+        <div class="stat-lbl">Completed</div>
+        <div class="stat-sub">rows in comprehensions_output</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${pending.length}</div>
+        <div class="stat-lbl">Pending</div>
+        <div class="stat-sub">assembled_at &lt; 10 min ago or null</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="${stalled.length>0?'color:#fbbf24':''}">${stalled.length}</div>
+        <div class="stat-lbl">Stalled</div>
+        <div class="stat-sub">comprehended_at null, assembled_at &gt; 10 min</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:15px;font-weight:500;color:#aaa">${lastRun ? relTime(lastRun) : '—'}</div>
+        <div class="stat-lbl">Last run</div>
+        <div class="stat-sub">${lastRun ? fmtTs(lastRun) : 'never'}</div>
+      </div>
+    `;
+
+    // show stalled signal IDs if any
+    if(stalled.length > 0){
+      statsEl.innerHTML += `<div style="grid-column:1/-1;background:#111;border:1px solid #4d3800;border-radius:7px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#4d3800;margin-bottom:8px">Stalled signals</div>
+        ${stalled.map(r=>`<div style="font-size:11px;font-family:ui-monospace,monospace;color:#888;padding:2px 0">
+          <span style="color:#555">${esc(r.signal_id)}</span>
+          <span style="color:#4d3800;margin-left:10px">assembled ${relTime(r.assembled_at)}</span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+  } catch(e){
+    statsEl.innerHTML = '';
+    showErr('err-pipeline', `Failed to load pipeline status: ${e.message}`);
+  }
+}
+
+async function runComprend(){
+  const btn = document.getElementById('run-comprehend-btn');
+  const box = document.getElementById('comprehend-response');
+  btn.disabled = true;
+  btn.classList.add('running');
+  box.className = 'response-box visible';
+  box.textContent = 'Running…';
+  try {
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST' });
+    const body = await res.text();
+    box.textContent = body;
+    box.className = `response-box visible ${res.ok ? 'success' : 'error-resp'}`;
+    loadAll();
+  } catch(e){
+    box.textContent = `Error: ${e.message}`;
+    box.className = 'response-box visible error-resp';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+  }
+}
+
+// ── Section 3 — Data Counts ───────────────────────────────────────────────────
+
+function buildCountGroup(title, rows, colorMap, total){
+  const max = Math.max(...rows.map(r=>r.n), 1);
+  return `<div class="count-group">
+    <div class="count-group-title">${title}</div>
+    ${rows.map(r=>`
+      <div class="count-row">
+        <span class="count-row-label">
+          <span class="count-dot" style="background:${colorMap[r.k]||'#555'}"></span>
+          ${esc(r.k)}
+        </span>
+        <span class="count-row-num">${r.n}</span>
+      </div>
+      <div class="count-bar-bg">
+        <div class="count-bar-fill" style="width:${Math.round(r.n/max*100)}%;background:${colorMap[r.k]||'#555'}"></div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+async function loadCounts(allSignals, assemblyPending){
+  clearErr('err-counts');
+  const layout = document.getElementById('counts-layout');
+  try {
+    const total = allSignals.length;
+
+    const bySource = {};
+    const byArchetype = {};
+    for(const s of allSignals){
+      bySource[s.source] = (bySource[s.source]||0)+1;
+      byArchetype[s.content_archetype] = (byArchetype[s.content_archetype]||0)+1;
+    }
+
+    const completedCount = await sbGetCount('/comprehensions_output?select=id');
+
+    const sourceColors = { slack:'#38bdf8', notion:'#a78bfa', quickbooks:'#4ade80', google:'#fb923c' };
+    const archColors   = { conversational:'#38bdf8', documentation:'#a78bfa', financial:'#4ade80', access:'#fb923c' };
+
+    const sourceRows = Object.entries(bySource).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n);
+    const archRows   = Object.entries(byArchetype).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n);
+
+    const now = Date.now();
+    const tenMinMs = 10*60*1000;
+    const pendingCount = assemblyPending.filter(r=>!r.assembled_at||(now-new Date(r.assembled_at).getTime())<tenMinMs).length;
+    const stalledCount = assemblyPending.filter(r=>r.assembled_at&&(now-new Date(r.assembled_at).getTime())>=tenMinMs).length;
+
+    layout.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="count-group">
+          <div class="count-group-title">Overview</div>
+          <div class="count-row"><span class="count-row-label">Total signals</span><span class="count-row-num">${total}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:100%;background:#2a2a2a"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#4ade80"></span>Comprehended</span><span class="count-row-num">${completedCount??'—'}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round((completedCount||0)/total*100):0}%;background:#4ade80"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#38bdf8"></span>Pending</span><span class="count-row-num">${pendingCount}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round(pendingCount/total*100):0}%;background:#38bdf8"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#fbbf24"></span>Stalled</span><span class="count-row-num">${stalledCount}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round(stalledCount/total*100):0}%;background:#fbbf24"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${buildCountGroup('By Source', sourceRows, sourceColors, total)}
+        ${buildCountGroup('By Content Archetype', archRows, archColors, total)}
+      </div>
+    `;
+  } catch(e){
+    layout.innerHTML = '';
+    showErr('err-counts', `Failed to load counts: ${e.message}`);
+  }
+}
+
+// ── Section 4 — Recent Activity ───────────────────────────────────────────────
+
+const SOURCE_BADGE = {
+  slack:      '<span class="badge badge-blue">slack</span>',
+  notion:     '<span class="badge badge-purple">notion</span>',
+  quickbooks: '<span class="badge badge-green">quickbooks</span>',
+  google:     '<span class="badge badge-orange">google</span>',
+};
+
+async function loadActivity(){
+  clearErr('err-activity');
+  const container = document.getElementById('activity-container');
+  try {
+    const { data } = await sbGet(
+      '/comprehensions_output' +
+      '?select=signal_id,comprehended_at,comprehension,signals_core!inner(source)' +
+      '&order=comprehended_at.desc&limit=10'
+    );
+
+    if(data.length === 0){
+      container.innerHTML = '<div class="loading">No comprehensions yet.</div>';
+      return;
+    }
+
+    container.innerHTML = `<table class="activity-table">
+      <thead><tr>
+        <th>Signal ID</th>
+        <th>Source</th>
+        <th>Signal Purpose</th>
+        <th>Comprehended</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(row => {
+          const src = row.signals_core?.source || '—';
+          const purpose = row.comprehension?.signal_purpose || '—';
+          const shortId = row.signal_id ? row.signal_id.slice(0,8)+'…' : '—';
+          return `<tr>
+            <td><span class="sig-id" title="${esc(row.signal_id)}">${esc(shortId)}</span></td>
+            <td>${SOURCE_BADGE[src]||esc(src)}</td>
+            <td><span class="purpose-cell">${esc(purpose)}</span></td>
+            <td style="white-space:nowrap;color:#555">${relTime(row.comprehended_at)}<br><span style="font-size:10px;color:#333">${fmtTs(row.comprehended_at)}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  } catch(e){
+    container.innerHTML = '';
+    showErr('err-activity', `Failed to load recent activity: ${e.message}`);
+  }
+}
+
+// ── Section 5 — Test Controls ────────────────────────────────────────────────
+
+async function resetToPending(){
+  const src = document.getElementById('source-select').value;
+  const label = src === 'all' ? 'ALL sources' : src;
+  if(!confirm(`Reset comprehensions for ${label} back to pending?\n\nThis deletes their comprehensions_output rows and nulls comprehended_at in comprehensions_assembly. They will re-enter the queue on next comprehend run.`)) return;
+
+  const btn = document.getElementById('reset-btn');
+  const resp = document.getElementById('reset-response');
+  btn.disabled = true;
+  resp.className = 'controls-response visible';
+  resp.textContent = 'Working…';
+
+  try {
+    // 1. Get signal IDs for selected source
+    const sourceFilter = src === 'all' ? '' : `?source=eq.${src}`;
+    const { data: signals } = await sbGet(`/signals_core${sourceFilter}&select=id`);
+    const ids = signals.map(s=>s.id);
+
+    if(ids.length === 0){
+      resp.textContent = 'No signals found for selected source.';
+      resp.className = 'controls-response visible';
+      btn.disabled = false;
+      return;
+    }
+
+    const idList = ids.join(',');
+
+    // 2. Delete comprehensions_output rows
+    const delRes = await fetch(
+      `${SB_URL}/rest/v1/comprehensions_output?signal_id=in.(${idList})`,
+      { method:'DELETE', headers: BASE_HEADERS }
+    );
+    if(!delRes.ok){
+      const body = await delRes.json().catch(()=>({}));
+      throw new Error(`DELETE failed: ${JSON.stringify(body)}`);
+    }
+
+    // 3. Null out comprehended_at in comprehensions_assembly
+    const patchRes = await fetch(
+      `${SB_URL}/rest/v1/comprehensions_assembly?signal_id=in.(${idList})`,
+      {
+        method: 'PATCH',
+        headers: BASE_HEADERS,
+        body: JSON.stringify({ comprehended_at: null }),
+      }
+    );
+    if(!patchRes.ok){
+      const body = await patchRes.json().catch(()=>({}));
+      throw new Error(`PATCH failed: ${JSON.stringify(body)}`);
+    }
+
+    resp.textContent = `Done. Reset ${ids.length} signal(s) for source: ${label}. They will be re-processed on the next comprehend run.`;
+    resp.className = 'controls-response visible ok';
+    loadAll();
+  } catch(e){
+    resp.textContent = `Error: ${e.message}`;
+    resp.className = 'controls-response visible err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runComprehendSource(){
+  const btn = document.getElementById('run-source-btn');
+  const resp = document.getElementById('run-source-response');
+  btn.disabled = true;
+  resp.className = 'controls-response visible';
+  resp.textContent = 'Running…';
+  try {
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST' });
+    const body = await res.text();
+    resp.textContent = body;
+    resp.className = `controls-response visible ${res.ok?'ok':'err'}`;
+    loadAll();
+  } catch(e){
+    resp.textContent = `Error: ${e.message}`;
+    resp.className = 'controls-response visible err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── main load ────────────────────────────────────────────────────────────────
+
+async function loadAll(){
+  startCountdown();
+  document.getElementById('last-refreshed').textContent = `Refreshed ${new Date().toLocaleTimeString()}`;
+
+  // shared fetches used by multiple sections
+  let allSignals = [];
+  let assemblyPending = [];
+  let signalsBySource = {};
+
+  try {
+    const [signalsRes, assemblyRes] = await Promise.all([
+      sbGet('/signals_core?select=id,source,content_archetype,ingested_at&order=ingested_at.desc'),
+      sbGet('/comprehensions_assembly?comprehended_at=is.null&select=id,signal_id,assembled_at'),
+    ]);
+    allSignals = signalsRes.data;
+    assemblyPending = assemblyRes.data;
+    for(const s of allSignals){
+      if(!signalsBySource[s.source]) signalsBySource[s.source] = [];
+      signalsBySource[s.source].push(s);
+    }
+  } catch(e){
+    // non-fatal — sections will show their own errors
+    console.error('Core fetch failed:', e);
+  }
+
+  // run all sections in parallel
+  await Promise.all([
+    loadConnections(signalsBySource),
+    loadPipeline(assemblyPending),
+    loadCounts(allSignals, assemblyPending),
+    loadActivity(),
+  ]);
+}
+
+loadAll();
+</script>
 </body>
 </html>

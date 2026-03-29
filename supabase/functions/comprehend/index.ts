@@ -552,7 +552,14 @@ function validateAndNormalize(parsed: unknown): Record<string, unknown> {
 // Main handler
 // ============================================================
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   const url = new URL(req.url);
   const limitParam = url.searchParams.get("limit");
   const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : 10;
@@ -579,7 +586,7 @@ Deno.serve(async (req) => {
     const detail = await fetchRes.text().catch(() => "");
     return new Response(
       JSON.stringify({ error: "Failed to fetch pending signals", detail }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 
@@ -738,6 +745,6 @@ Deno.serve(async (req) => {
 
   return new Response(
     JSON.stringify({ succeeded, failed, skipped, errors }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
   );
 });

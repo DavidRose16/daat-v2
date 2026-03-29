@@ -1,4 +1,12 @@
-Deno.serve(async (_req) => {
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -19,7 +27,7 @@ Deno.serve(async (_req) => {
     if (!conn) {
       return new Response(
         JSON.stringify({ error: "No Notion connection found" }),
-        { status: 404, headers: { "Content-Type": "application/json" } },
+        { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
@@ -169,12 +177,12 @@ Deno.serve(async (_req) => {
 
     return new Response(
       JSON.stringify({ ingested: totalIngested, errors: totalErrors, deleted }),
-      { headers: { "Content-Type": "application/json" } },
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 });

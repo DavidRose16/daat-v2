@@ -1,0 +1,3778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAAT Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --card: #111111;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+    --text: #e2e2e2;
+    --text-dim: #888;
+    --text-dimmer: #555;
+    --slack: #38bdf8;
+    --notion: #a78bfa;
+    --quickbooks: #4ade80;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; overflow: hidden; }
+
+  /* Layout */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .stats-bar { flex-shrink: 0; background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .filter-bar { flex-shrink: 0; background: #0d0d0d; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .main-area { flex: 1; display: flex; overflow: hidden; }
+  .left-panel { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; background: var(--card); }
+  .center-panel { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+  .detail-overlay.open { pointer-events: all; opacity: 1; }
+  .detail-panel { background: #131313; border: 1px solid var(--border2); border-radius: 8px 8px 0 0; width: 100%; max-width: 900px; max-height: 80vh; overflow-y: auto; padding: 20px; position: relative; }
+
+  /* Stats bar */
+  .stat-item { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+  .stat-divider { width: 1px; background: var(--border2); height: 36px; }
+  .source-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+  .source-pill.slack { color: var(--slack); background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); }
+  .source-pill.notion { color: var(--notion); background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+  .source-pill.quickbooks { color: var(--quickbooks); background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.2); }
+  .stat-fields { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field-chip { font-size: 10px; color: var(--text-dim); background: #1a1a1a; border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px; font-family: var(--mono); }
+  .field-chip span { color: var(--text); font-weight: 600; }
+
+  /* Filter bar */
+  .filter-bar label { font-size: 11px; color: var(--text-dim); margin-right: 4px; }
+  .filter-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: #1a1a1a; color: var(--text-dim); cursor: pointer; transition: all 0.1s; }
+  .filter-btn:hover { border-color: #444; color: var(--text); }
+  .filter-btn.active.slack { border-color: var(--slack); color: var(--slack); background: rgba(56,189,248,0.1); }
+  .filter-btn.active.notion { border-color: var(--notion); color: var(--notion); background: rgba(167,139,250,0.1); }
+  .filter-btn.active.quickbooks { border-color: var(--quickbooks); color: var(--quickbooks); background: rgba(74,222,128,0.1); }
+  .filter-btn.active.all { border-color: #555; color: var(--text); background: #222; }
+  .search-input { flex: 1; min-width: 160px; max-width: 300px; background: #1a1a1a; border: 1px solid var(--border2); border-radius: 4px; color: var(--text); padding: 4px 10px; font-size: 12px; outline: none; }
+  .search-input:focus { border-color: #444; }
+  .search-input::placeholder { color: var(--text-dimmer); }
+  .filter-sep { width: 1px; height: 20px; background: var(--border2); }
+  .has-filter { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: #1a1a1a; color: var(--text-dim); cursor: pointer; transition: all 0.1s; }
+  .has-filter:hover { border-color: #444; color: var(--text); }
+  .has-filter.active { border-color: #888; color: var(--text); background: #222; }
+  .clear-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #3a2020; background: #1a1010; color: #f87171; cursor: pointer; }
+  .clear-btn:hover { background: #2a1010; }
+  .result-count { font-size: 11px; color: var(--text-dimmer); margin-left: auto; font-family: var(--mono); }
+
+  /* Left panel */
+  .lp-section { border-bottom: 1px solid var(--border); }
+  .lp-section-head { padding: 10px 12px 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); font-weight: 600; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  .lp-section-head:hover { color: var(--text-dim); }
+  .lp-section-body { padding-bottom: 4px; }
+  .lp-item { display: flex; align-items: center; gap: 6px; padding: 4px 12px; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
+  .lp-item:hover { background: #181818; }
+  .lp-item.active { background: #1a1a1a; border-left-color: #555; }
+  .lp-item-label { flex: 1; font-size: 11px; color: var(--text-dim); line-height: 1.3; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 160px; }
+  .lp-item.active .lp-item-label { color: var(--text); }
+  .lp-item-count { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); min-width: 18px; text-align: right; }
+  .lp-source-dots { display: flex; gap: 2px; }
+  .lp-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .lp-dot.slack { background: var(--slack); }
+  .lp-dot.notion { background: var(--notion); }
+  .lp-dot.quickbooks { background: var(--quickbooks); }
+  .lp-collapsed .lp-section-body { display: none; }
+  .lp-chevron { font-size: 9px; color: var(--text-dimmer); }
+
+  /* Signal cards */
+  .signal-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; cursor: pointer; transition: border-color 0.1s, background 0.1s; }
+  .signal-card:hover { border-color: var(--border2); background: #151515; }
+  .signal-card.selected { border-color: #333; background: #161616; }
+  .card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .card-badge { flex-shrink: 0; margin-top: 1px; }
+  .card-purpose { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; flex: 1; }
+  .card-primary { font-size: 11px; color: var(--text-dim); margin-bottom: 5px; margin-left: 0; font-family: var(--mono); }
+  .card-summary { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .card-chip { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); background: #1a1a1a; border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; }
+  .card-chip.has-items { color: var(--text-dim); border-color: #2a2a2a; }
+  .card-chip .chip-n { color: var(--text); font-weight: 600; }
+  .card-meta { font-size: 10px; color: var(--text-dimmer); font-family: var(--mono); margin-top: 6px; }
+  .no-results { color: var(--text-dimmer); font-size: 12px; text-align: center; padding: 40px 20px; }
+
+  /* Detail panel */
+  .detail-close { position: absolute; top: 16px; right: 16px; background: #1a1a1a; border: 1px solid var(--border2); color: var(--text-dim); width: 28px; height: 28px; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .detail-close:hover { color: var(--text); border-color: #444; }
+  .detail-header { margin-bottom: 16px; padding-right: 36px; }
+  .detail-source { margin-bottom: 8px; }
+  .detail-purpose { font-size: 18px; font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
+  .detail-primary { font-size: 12px; color: var(--text-dim); font-family: var(--mono); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .detail-section { background: #0f0f0f; border: 1px solid var(--border); border-radius: 5px; padding: 12px; }
+  .detail-section-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 8px; font-weight: 600; }
+  .detail-items { display: flex; flex-direction: column; gap: 8px; }
+  .detail-item { }
+  .detail-item-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .detail-item-grounding { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); line-height: 1.4; background: #0a0a0a; padding: 4px 8px; border-radius: 3px; border-left: 2px solid #2a2a2a; }
+  .detail-empty { font-size: 11px; color: var(--text-dimmer); font-style: italic; }
+  .detail-prose { background: #0f0f0f; border: 1px solid var(--border); border-radius: 5px; padding: 12px; margin-bottom: 12px; }
+  .detail-prose-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 6px; font-weight: 600; }
+  .detail-prose-text { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+  .detail-id { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="statsBar"></div>
+  <!-- Filter Bar -->
+  <div class="filter-bar" id="filterBar"></div>
+  <!-- Main -->
+  <div class="main-area">
+    <div class="left-panel" id="leftPanel"></div>
+    <div class="center-panel" id="centerPanel"></div>
+  </div>
+</div>
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-panel" id="detailPanel">
+    <button class="detail-close" id="detailClose">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const AGGREGATES = {
+  "total_signals": 50,
+  "source_counts": {
+    "quickbooks": 7,
+    "notion": 1,
+    "slack": 42
+  },
+  "field_totals": {
+    "workflows": 15,
+    "problems": 27,
+    "tools": 11,
+    "decisions": 13,
+    "people": 63,
+    "states": 57
+  },
+  "label_freq": {
+    "workflows": [
+      {
+        "label": "accounts payable",
+        "count": 6,
+        "sources": {
+          "quickbooks": 6
+        }
+      },
+      {
+        "label": "vendor payment",
+        "count": 5,
+        "sources": {
+          "quickbooks": 5
+        }
+      },
+      {
+        "label": "accounts payable \u2014 cash disbursement",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "Signup-to-first-API-call onboarding flow",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Data source connection \u2014 Slack, Notion, QuickBooks",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "content readiness handoff",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      }
+    ],
+    "problems": [
+      {
+        "label": "missing memo",
+        "count": 6,
+        "sources": {
+          "quickbooks": 6
+        }
+      },
+      {
+        "label": "recurrence status unknown",
+        "count": 3,
+        "sources": {
+          "quickbooks": 3
+        }
+      },
+      {
+        "label": "recurrence status unresolved",
+        "count": 2,
+        "sources": {
+          "quickbooks": 2
+        }
+      },
+      {
+        "label": "Slack OAuth failure on first connection attempt",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Notion integration skipped due to manual page selection requirement",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "QuickBooks sync slower than expected",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "User drop-off after dashboard load",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Low data source connection rate",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Sync failures not surfaced to users",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Slack-connected users see no data",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Connection success rate insufficient for onboarding campaign scaling",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Removal of manual approval may have introduced low-quality signups",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "No clear owner for full onboarding experience",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Billing setup guide potentially outdated",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "vague category label",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "missing top-level memo",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "tax amount not recorded",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "API integration approach undefined",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "hostile message directed at named colleague",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      }
+    ],
+    "tools": [
+      {
+        "label": "Notion",
+        "count": 3,
+        "sources": {
+          "notion": 1,
+          "quickbooks": 1,
+          "slack": 1
+        }
+      },
+      {
+        "label": "Quickbooks Software",
+        "count": 2,
+        "sources": {
+          "quickbooks": 2
+        }
+      },
+      {
+        "label": "Slack",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "QuickBooks",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Anthropic",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "Namecheap",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "Google Workspace",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "ChatGPT",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      }
+    ],
+    "decisions": [
+      {
+        "label": "software purchase committed via cash payment",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "Manual approval step removed from onboarding (post-November)",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Onboarding goal defined as signup to first successful API call",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "payment issued to vendor",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "vendor payment approved",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "domain hosting purchase committed",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "service expense approved as non-billable",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "payment issued to Notion",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "ChatGPT service purchased",
+        "count": 1,
+        "sources": {
+          "quickbooks": 1
+        }
+      },
+      {
+        "label": "channel renamed from 'new-channel' to 'engineering'",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "channel renamed from engineering to marketing",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "channel topic set to Blog Content Creation",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "post marked as ready for use",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      }
+    ],
+    "people": [
+      {
+        "label": "U0AGX2TPCDP",
+        "count": 10,
+        "sources": {
+          "slack": 10
+        }
+      },
+      {
+        "label": "sender (U0AGX2TPCDP)",
+        "count": 8,
+        "sources": {
+          "slack": 8
+        }
+      },
+      {
+        "label": "mentioned user (U0AGGF3NL3Y)",
+        "count": 7,
+        "sources": {
+          "slack": 7
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW",
+        "count": 6,
+        "sources": {
+          "slack": 6
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8",
+        "count": 5,
+        "sources": {
+          "slack": 5
+        }
+      },
+      {
+        "label": "joining user (U0AMAJ92X3N)",
+        "count": 4,
+        "sources": {
+          "slack": 4
+        }
+      },
+      {
+        "label": "inviter (U0AGX2TPCDP)",
+        "count": 4,
+        "sources": {
+          "slack": 4
+        }
+      },
+      {
+        "label": "joining user (U0AGGF3NL3Y)",
+        "count": 2,
+        "sources": {
+          "slack": 2
+        }
+      },
+      {
+        "label": "inviting user (U0AGX2TPCDP)",
+        "count": 2,
+        "sources": {
+          "slack": 2
+        }
+      },
+      {
+        "label": "Growth team \u2014 owns signup flow",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Engineering \u2014 owns integrations and sync reliability",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "mentioned user U0AGMP8L0KW",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "mentioned user U0AGG3HUTK8",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "David Rosenberg",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AMAJ92X3N (joined member)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGX2TPCDP (inviter)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "joining user U0AHDNFPAG0",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "inviting user U0AGX2TPCDP",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 (sender, unnamed)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "Mike (recipient of message)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "Mike",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "sender U0AGX2TPCDP",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "mentioned user U0AGGF3NL3Y",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "sender (U0AGMP8L0KW)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      }
+    ],
+    "states": [
+      {
+        "label": "paid",
+        "count": 7,
+        "sources": {
+          "quickbooks": 7
+        }
+      },
+      {
+        "label": "not billable",
+        "count": 6,
+        "sources": {
+          "quickbooks": 6
+        }
+      },
+      {
+        "label": "message unanswered \u2014 no replies recorded",
+        "count": 2,
+        "sources": {
+          "slack": 2
+        }
+      },
+      {
+        "label": "Onboarding flow \u2014 partially implemented, actively iterated",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Old flow \u2014 deprecated pre-November",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Metrics \u2014 last reviewed January, self-described as potentially inaccurate",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "Onboarding checklist UX ownership \u2014 unclear",
+        "count": 1,
+        "sources": {
+          "notion": 1
+        }
+      },
+      {
+        "label": "U0AGX2TPCDP is now a member of the social channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "thread contains single unreplied message",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 is now a member of #social",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW is now a member of #social",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AMAJ92X3N is now a member of #social",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "user joined engineering channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 is now a member of the engineering channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW is now a member of the engineering channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "channel name is now 'engineering'",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "roadmap document updated as of Feb 23",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AMAJ92X3N is now a member of #engineering",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "user joined all-daat channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 is now a member of all-daat",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW is now a member of all-daat",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AHDNFPAG0 is now a member of all-daat",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "user U0AMAJ92X3N is now a member of all-daat",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGX2TPCDP is now a member of the marketing channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 is now a member of #marketing",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "API integration unstarted or unplanned",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "hostile interpersonal exchange present in public marketing channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW is now a member of the marketing channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "sender has conceded a prior point",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGGF3NL3Y is now a member of the marketing channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "mentioned user has not yet responded",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "channel is now named marketing (previously engineering)",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "marketing channel topic is Blog Content Creation",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "AI cost optimization post is ready",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AMAJ92X3N is now a member of the marketing channel",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGX2TPCDP newly joined #general",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGG3HUTK8 is now a member of #general",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGGF3NL3Y is now a member of #general",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "message sent with no reply and no reactions",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "no reply received",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "conversation not yet initiated \u2014 awaiting response",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "message unanswered \u2014 no replies, no reactions",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "message unanswered \u2014 no replies",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AMAJ92X3N is now a member of #general",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      },
+      {
+        "label": "U0AGMP8L0KW has joined #general",
+        "count": 1,
+        "sources": {
+          "slack": 1
+        }
+      }
+    ]
+  }
+};
+const SIGNALS = [
+  {
+    "signal_id": "260db203-394e-4ab8-9ae2-31f62fd0ee39",
+    "comprehended_at": "2026-03-29 20:29:01.103+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The vendor name 'Quickbooks Software' suggests this may be a payment to Intuit for QuickBooks itself \u2014 meaning the organization may be recording a subscription or license fee for the tool used to generate this very transaction. The presence of RecurDataRef in the raw data suggests QuickBooks has a recurrence template linked to this transaction, which implies this payment may be part of a scheduled series even though the structured fields do not confirm it. The $20 amount is small and consistent with a per-seat or low-tier software subscription, though this cannot be asserted from the signal alone.",
+      "tools": [
+        {
+          "label": "Quickbooks Software",
+          "grounding": "EntityRef.name: 'Quickbooks Software', EntityRef.type: 'Vendor'; Line description: 'Software'"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "PaymentType: 'Cash', account_name: 'Cash' \u2014 payment executed via cash"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false, BillableStatus: 'NotBillable'"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$20.00 USD \u2014 2026-03-23",
+        "primary_label": "Quickbooks Software"
+      },
+      "summary": "A $20.00 USD cash purchase was made on 2026-03-23 from vendor Quickbooks Software, categorized under Services with a line description of Software. The transaction is marked not billable and was paid via cash from the Cash account. No memo is present. A RecurDataRef is attached in the raw data but recurrence fields in the structured record are null, leaving the recurring nature of this transaction unresolved.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null in source data"
+        },
+        {
+          "label": "recurrence status unresolved",
+          "grounding": "is_recurring: null, recurrence_interval: null, recurrence_frequency: null \u2014 despite RecurDataRef.value: '1' present in raw content"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "software purchase committed via cash payment",
+          "grounding": "transaction_type: 'Purchase', PaymentType: 'Cash', Amount: 20"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "vendor payment",
+          "grounding": "transaction_type: 'Purchase', EntityRef.type: 'Vendor'"
+        },
+        {
+          "label": "accounts payable \u2014 cash disbursement",
+          "grounding": "AccountRef.name: 'Cash', PaymentType: 'Cash'"
+        }
+      ],
+      "uncertainty": "The memo field is null, so the specific purpose of this transaction beyond the generic line description 'Software' is not stated. The recurrence status is ambiguous: RecurDataRef.value is set to '1' in the raw QuickBooks data, which typically indicates a linked recurrence schedule, but is_recurring, recurrence_interval, and recurrence_frequency are all null in the structured signal. It cannot be confirmed from this signal alone whether this is a one-time or recurring payment. The category 'Services' is broad and does not clarify what service or software capability is being purchased.",
+      "signal_purpose": "vendor payment \u2014 software purchase"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:29.848008+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 2,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "90298de3-10a1-4f42-9ac1-8af2ed95c12c",
+    "comprehended_at": "2026-03-29 20:13:51.198+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The document reads as a partial consolidation of working knowledge rather than a polished process guide \u2014 the 'Random Notes' section, inline TODOs, and unresolved questions suggest it was written by someone close to the work capturing what they know, not authoring documentation for a general audience. The structure implies the author is aware the process is broken but has not yet driven resolution: known issues are catalogued but unassigned, open questions are listed but unanswered, and ownership gaps are acknowledged rather than resolved. The decision to remove manual approval is framed with mild concern ('may have introduced more low-quality signups'), suggesting the tradeoff has not been evaluated after the fact. The combination of a 47% data-source connection rate and a 31% successful sync rate \u2014 with acknowledged issues across all three integrations \u2014 implies the core activation metric (first successful API call) is structurally at risk, even if not stated that directly.",
+      "tools": [
+        {
+          "label": "Slack",
+          "grounding": "Notes on Data Source Connection: 'We currently support Slack, Notion, and QuickBooks'"
+        },
+        {
+          "label": "Notion",
+          "grounding": "Notes on Data Source Connection: 'We currently support Slack, Notion, and QuickBooks'"
+        },
+        {
+          "label": "QuickBooks",
+          "grounding": "Notes on Data Source Connection: 'We currently support Slack, Notion, and QuickBooks'"
+        }
+      ],
+      "people": [
+        {
+          "label": "Growth team \u2014 owns signup flow",
+          "grounding": "Ownership: 'Growth team owns signup flow'"
+        },
+        {
+          "label": "Engineering \u2014 owns integrations and sync reliability",
+          "grounding": "Ownership: 'Engineering owns integrations + sync reliability'"
+        }
+      ],
+      "states": [
+        {
+          "label": "Onboarding flow \u2014 partially implemented, actively iterated",
+          "grounding": "Status: 'Partially implemented, actively being iterated on, but no clear owner for full onboarding experience'"
+        },
+        {
+          "label": "Old flow \u2014 deprecated pre-November",
+          "grounding": "Old Flow section heading: 'Old Flow (Pre-November)'"
+        },
+        {
+          "label": "Metrics \u2014 last reviewed January, self-described as potentially inaccurate",
+          "grounding": "Metrics section heading: 'Metrics (Last Reviewed: January)'; 'These numbers feel off but haven't been rechecked recently'"
+        },
+        {
+          "label": "Onboarding checklist UX ownership \u2014 unclear",
+          "grounding": "Ownership: 'Unclear who owns onboarding checklist UX (previously design?)'"
+        }
+      ],
+      "context": null,
+      "summary": null,
+      "problems": [
+        {
+          "label": "Slack OAuth failure on first connection attempt",
+          "grounding": "Notes on Data Source Connection: 'Slack connection sometimes fails on first attempt (OAuth issue?)'"
+        },
+        {
+          "label": "Notion integration skipped due to manual page selection requirement",
+          "grounding": "Notes on Data Source Connection: 'Notion integration requires manual page selection, which users often skip'"
+        },
+        {
+          "label": "QuickBooks sync slower than expected",
+          "grounding": "Notes on Data Source Connection: 'QuickBooks works reliably but takes longer than expected'"
+        },
+        {
+          "label": "User drop-off after dashboard load",
+          "grounding": "Known Issues: 'Users drop off after dashboard load'"
+        },
+        {
+          "label": "Low data source connection rate",
+          "grounding": "Known Issues: 'Many users never connect a data source'"
+        },
+        {
+          "label": "Sync failures not surfaced to users",
+          "grounding": "Known Issues: 'Sync failures are not surfaced clearly to users'"
+        },
+        {
+          "label": "Slack-connected users see no data",
+          "grounding": "Known Issues: 'Some users connect Slack but no data appears'; NOTE: 'might be related to permissions, but not confirmed'"
+        },
+        {
+          "label": "Connection success rate insufficient for onboarding campaign scaling",
+          "grounding": "TODO: 'improve connection success rate before scaling onboarding campaigns'"
+        },
+        {
+          "label": "Removal of manual approval may have introduced low-quality signups",
+          "grounding": "Old Flow section: 'This was removed to reduce friction, but may have introduced more low-quality signups'"
+        },
+        {
+          "label": "No clear owner for full onboarding experience",
+          "grounding": "Status section: 'no clear owner for full onboarding experience'"
+        },
+        {
+          "label": "Billing setup guide potentially outdated",
+          "grounding": "Overview: 'refer to the billing setup guide (may be outdated)'"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "Manual approval step removed from onboarding (post-November)",
+          "grounding": "Old Flow section: 'Previously, onboarding required manual approval before users could connect data sources. This was removed to reduce friction'"
+        },
+        {
+          "label": "Onboarding goal defined as signup to first successful API call",
+          "grounding": "Overview: 'The goal is to get users from signup to first successful API call as quickly as possible'"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "Signup-to-first-API-call onboarding flow",
+          "grounding": "Current Flow section: numbered steps 1\u20137 covering signup, email verification, dashboard redirect, onboarding checklist, data source connection, initial sync, confirmation message"
+        },
+        {
+          "label": "Data source connection \u2014 Slack, Notion, QuickBooks",
+          "grounding": "Notes on Data Source Connection: 'We currently support Slack, Notion, and QuickBooks'"
+        }
+      ],
+      "uncertainty": "The metrics section is explicitly flagged as last reviewed in January and self-described as potentially inaccurate ('These numbers feel off but haven't been rechecked recently'), meaning the conversion figures (92%, 47%, 31%) should not be treated as current. The billing setup guide is noted as possibly outdated, but the guide itself is not present in this signal. Ownership of the onboarding checklist UX is explicitly unresolved \u2014 'previously design?' suggests a past state that may no longer apply. The Slack data-ingestion failure is noted as possibly permissions-related but is explicitly unconfirmed. The 'Random Notes' section references a discussion about onboarding emails with no recorded outcome, and a suggestion about templates with no attributed owner or decision status. The document was created and last edited on the same day (2026-03-29), which may indicate a recent draft or consolidation of scattered notes rather than a maintained living document. The page title in Notion metadata reads 'Test Page' despite the content heading being 'Customer Onboarding Process (v2)', raising a minor signal that this page's placement or naming may not reflect its intended canonical location. The '(v2)' in the heading implies a prior version exists but it is not referenced or linked in this signal.",
+      "signal_purpose": "Customer onboarding process documentation \u2014 intended flow, known issues, ownership, and metrics"
+    },
+    "source": "notion",
+    "content_archetype": "documentation",
+    "ingested_at": "2026-03-29 20:32:50.536034+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 11,
+      "tools": 3,
+      "decisions": 2,
+      "people": 2,
+      "states": 4
+    }
+  },
+  {
+    "signal_id": "5ba4bcbe-da7f-48e9-a93d-7bb37d33bde1",
+    "comprehended_at": "2026-03-29 16:34:20.299+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The vendor name 'Quickbooks Software' suggests this is a payment to Intuit for QuickBooks itself, which would make this an internal platform cost rather than a third-party vendor expense. The $20 amount is consistent with a small subscription tier or a per-user charge, though this cannot be confirmed from the transaction alone. The absence of recurrence metadata leaves open whether this is part of a regular billing cycle.",
+      "tools": [
+        {
+          "label": "Quickbooks Software",
+          "grounding": "vendor_name: 'Quickbooks Software'; EntityRef name: 'Quickbooks Software'"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "account_name: Cash; PaymentType: Cash; transaction_type: Purchase"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false; BillableStatus: 'NotBillable'"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$20.00 \u2014 2026-02-23",
+        "primary_label": "Quickbooks Software"
+      },
+      "summary": "A $20.00 cash purchase was made to vendor Quickbooks Software on 2026-02-23, categorized under Services. The transaction is marked not billable, has no memo, and was paid from the Cash account.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null"
+        },
+        {
+          "label": "vague category label",
+          "grounding": "category: 'Services ( 7 )' \u2014 numeric suffix suggests a system-generated or uncleaned label"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "payment issued to vendor",
+          "grounding": "transaction_type: Purchase; PaymentType: Cash; TotalAmt: 20"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "accounts payable",
+          "grounding": "transaction_type: Purchase; EntityRef type: Vendor"
+        }
+      ],
+      "uncertainty": "No memo is present, so the specific purpose of this payment is unknown. It is unclear whether this is a subscription fee, a one-time charge, or another type of service payment. The is_recurring field is null, so recurrence cannot be confirmed or ruled out from this signal alone. The category label 'Services ( 7 )' includes a numeric suffix that may indicate a system-generated or uncleaned QuickBooks account name, making the category classification ambiguous.",
+      "signal_purpose": "vendor payment"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:30.092372+00",
+    "_field_counts": {
+      "workflows": 1,
+      "problems": 2,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "2ab2d613-f627-4d36-b8aa-84e22b2390d4",
+    "comprehended_at": "2026-03-29 16:34:09.016+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Anthropic is an AI services company, which suggests this payment likely relates to API access or AI tooling. The $20 amount is small and consistent with usage-based or low-tier subscription billing. The absence of recurrence metadata means recurrence cannot be confirmed from this signal alone, though the vendor type and amount are consistent with a recurring software expense.",
+      "tools": [
+        {
+          "label": "Anthropic",
+          "grounding": "EntityRef.name: Anthropic, EntityRef.type: Vendor \u2014 Anthropic is an AI services provider"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "transaction_type: Purchase; AccountRef.name: Cash; PaymentType: Cash \u2014 cash disbursement recorded"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false; BillableStatus: NotBillable"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$20 USD \u2014 2026-02-15",
+        "primary_label": "Anthropic"
+      },
+      "summary": "A $20 USD cash purchase was made to vendor Anthropic on 2026-02-15, categorized under Services and recorded against the Cash account. The line item carries a description of 'Software' and is marked not billable. No memo is present.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null in source data JSON"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "vendor payment approved",
+          "grounding": "transaction_type: Purchase; TotalAmt: 20; PaymentType: Cash \u2014 payment to Anthropic was executed"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "accounts payable",
+          "grounding": "transaction_type: Purchase; payment made to vendor Anthropic via Cash"
+        }
+      ],
+      "uncertainty": "The purpose of the transaction is not explicitly stated \u2014 the memo field is null. The line description 'Software' loosely implies a software or API service purchase from Anthropic, but this is not confirmed. It is unclear whether this is a one-time or recurring payment; is_recurring is null and no recurrence interval or frequency is set. The category 'Services ( 8 )' is a QuickBooks account reference and does not clarify the nature of the service beyond the line description.",
+      "signal_purpose": "vendor payment"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:29.756167+00",
+    "_field_counts": {
+      "workflows": 1,
+      "problems": 1,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "1b5ab01b-f88e-4c49-89b4-d1000d96ffc4",
+    "comprehended_at": "2026-03-29 16:33:57.08+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Namecheap is a domain registrar and hosting provider. The description 'Domain Host' and the small dollar amount ($11.18) are consistent with a domain registration or renewal fee. The use of Cash as the payment method and account may reflect a payment method convention in this organization's QuickBooks setup rather than literal cash. The transaction not being billable suggests it is an internal operating expense rather than a client-facing cost.",
+      "tools": [
+        {
+          "label": "Namecheap",
+          "grounding": "EntityRef.name: 'Namecheap', Line description: 'Domain Host'"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "PaymentType: 'Cash', AccountRef.name: 'Cash', transaction_type: 'Purchase'"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false, BillableStatus: 'NotBillable'"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$11.18 \u2014 2026-02-15",
+        "primary_label": "Namecheap"
+      },
+      "summary": "A cash purchase of $11.18 was made to Namecheap on February 15, 2026, categorized under Services. The line item description is 'Domain Host', indicating a domain-related payment. The transaction is marked not billable and has no memo. Tax amount is not recorded.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null"
+        },
+        {
+          "label": "recurrence status unknown",
+          "grounding": "is_recurring: null, recurrence_interval: null, recurrence_frequency: null"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "domain hosting purchase committed",
+          "grounding": "transaction_type: 'Purchase', EntityRef.name: 'Namecheap', Description: 'Domain Host'"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "vendor payment",
+          "grounding": "transaction_type: 'Purchase', PaymentType: 'Cash', EntityRef.type: 'Vendor'"
+        },
+        {
+          "label": "accounts payable",
+          "grounding": "AccountRef.name: 'Cash', TotalAmt: 11.18, TxnDate: '2026-02-15'"
+        }
+      ],
+      "uncertainty": "Whether this is a recurring domain renewal or a one-time purchase cannot be determined from this signal alone \u2014 is_recurring, recurrence_interval, and recurrence_frequency are all null. The specific domain being hosted is not identified. It is unclear whether the $11.18 reflects a full annual fee, a partial period, or another billing structure. No person responsible for the transaction is named.",
+      "signal_purpose": "vendor payment \u2014 domain hosting"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:30.037809+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 2,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "ec85cfc0-5018-496d-a2b1-298cde1d64da",
+    "comprehended_at": "2026-03-29 16:33:44.008+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The line item description 'Google Workspace' strongly suggests this is a software subscription payment, which would typically be recurring. However, the recurrence fields are unpopulated, so that inference cannot be confirmed from this signal. The use of Cash as both the payment method and account is consistent with a direct payment rather than an accounts payable workflow.",
+      "tools": [
+        {
+          "label": "Google Workspace",
+          "grounding": "Line[0].Description: 'Google Workspace', vendor_name: 'Google'"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "transaction_type: Purchase, PaymentType: Cash, account_name: Cash"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$20 \u2014 2026-02-15",
+        "primary_label": "Google"
+      },
+      "summary": "A $20 cash purchase was made to Google on 2026-02-15, recorded against the Services expense account. The line item description identifies this as Google Workspace. The transaction is marked non-billable and was recorded in QuickBooks on 2026-02-23.",
+      "problems": [
+        {
+          "label": "missing top-level memo",
+          "grounding": "memo: null in source data JSON"
+        },
+        {
+          "label": "recurrence status unresolved",
+          "grounding": "is_recurring: null, recurrence_interval: null, recurrence_frequency: null"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "service expense approved as non-billable",
+          "grounding": "BillableStatus: NotBillable, is_billable: false"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "vendor payment",
+          "grounding": "transaction_type: Purchase, EntityRef.type: Vendor"
+        },
+        {
+          "label": "accounts payable",
+          "grounding": "AccountRef.name: Cash, PaymentType: Cash"
+        }
+      ],
+      "uncertainty": "Whether this is a recurring subscription or a one-off payment cannot be determined from this signal alone \u2014 is_recurring, recurrence_interval, and recurrence_frequency are all null. The absence of a top-level memo means no additional context was provided for the transaction. It is not clear who authorized or initiated the purchase.",
+      "signal_purpose": "vendor payment"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:29.984832+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 2,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "38c80e1c-c97a-4015-88e8-7d7b04194391",
+    "comprehended_at": "2026-03-29 16:33:34.093+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Notion is a software and productivity tool, so this payment likely reflects a software subscription or seat-based license fee. The $24 amount is consistent with common Notion plan pricing, which may suggest a monthly subscription, but recurrence is not confirmed by this signal. Payment via Cash in QuickBooks may reflect a bank account transaction recorded under that account name rather than physical cash.",
+      "tools": [
+        {
+          "label": "Notion",
+          "grounding": "EntityRef name: 'Notion', type: 'Vendor'; Line Description: 'notion'"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "PaymentType: 'Cash', transaction_type: 'Purchase', AccountRef name: 'Cash'"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false, BillableStatus: 'NotBillable'"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$24 \u2014 2026-02-15",
+        "primary_label": "Notion"
+      },
+      "summary": "A $24 USD cash purchase was made to Notion on February 15, 2026, categorized under Services. The transaction is marked not billable and was recorded in QuickBooks against the Cash account. No memo or tax amount was provided, and recurrence status is unspecified.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null in source data JSON"
+        },
+        {
+          "label": "recurrence status unknown",
+          "grounding": "is_recurring: null, recurrence_interval: null, recurrence_frequency: null"
+        },
+        {
+          "label": "tax amount not recorded",
+          "grounding": "tax_amount: null in source data JSON"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "payment issued to Notion",
+          "grounding": "transaction_type: 'Purchase', TotalAmt: 24, TxnDate: '2026-02-15'"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "vendor payment",
+          "grounding": "transaction_type: 'Purchase', EntityRef type: 'Vendor', vendor_name: 'Notion'"
+        },
+        {
+          "label": "accounts payable",
+          "grounding": "AccountRef name: 'Cash', PaymentType: 'Cash', TotalAmt: 24"
+        }
+      ],
+      "uncertainty": "The memo field is null, so the specific purpose of this payment is not stated in the signal. It is unclear whether this is a subscription payment, a one-time purchase, or something else. The is_recurring field is null, so recurrence cannot be confirmed or ruled out from this signal alone. Tax amount is also absent, which may indicate no tax was applied or that it was not recorded.",
+      "signal_purpose": "vendor payment"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:29.938522+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 3,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "a2ad98df-affc-4a59-aa36-83f353f01670",
+    "comprehended_at": "2026-03-29 16:33:21.931+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "ChatGPT is an AI service offered by OpenAI. A $90 payment at this vendor suggests a paid subscription or API usage charge, though the specific product cannot be confirmed from this signal. The absence of a memo and the minimal line description suggest this may be a routine or automated payment where no additional context was considered necessary at the time of entry.",
+      "tools": [
+        {
+          "label": "ChatGPT",
+          "grounding": "vendor_name: ChatGPT; EntityRef name: ChatGPT, type: Vendor"
+        }
+      ],
+      "people": [],
+      "states": [
+        {
+          "label": "paid",
+          "grounding": "PaymentType: Cash; account_name: Cash"
+        },
+        {
+          "label": "not billable",
+          "grounding": "is_billable: false; BillableStatus: NotBillable"
+        }
+      ],
+      "context": {
+        "source": "quickbooks",
+        "secondary": "$90 \u2014 2026-02-23",
+        "primary_label": "ChatGPT"
+      },
+      "summary": "A $90 USD cash purchase was made to vendor ChatGPT on 2026-02-23, categorized under Services. The transaction is marked as not billable and was paid via cash. No memo or description is attached beyond the vendor name. Recurrence status is not specified.",
+      "problems": [
+        {
+          "label": "missing memo",
+          "grounding": "memo: null"
+        },
+        {
+          "label": "recurrence status unknown",
+          "grounding": "is_recurring: null; recurrence_interval: null; recurrence_frequency: null"
+        }
+      ],
+      "decisions": [
+        {
+          "label": "ChatGPT service purchased",
+          "grounding": "transaction_type: Purchase; EntityRef name: ChatGPT"
+        }
+      ],
+      "workflows": [
+        {
+          "label": "vendor payment",
+          "grounding": "transaction_type: Purchase; PaymentType: Cash"
+        },
+        {
+          "label": "accounts payable",
+          "grounding": "EntityRef type: Vendor; AccountRef name: Cash"
+        }
+      ],
+      "uncertainty": "The purpose of the payment is not stated \u2014 no memo is present and the line description only repeats the vendor name. It is unclear whether this is a subscription payment, a one-time purchase, or a top-up. The recurrence fields are all null, so whether this is a recurring charge cannot be determined from this signal alone. The specific ChatGPT plan or tier associated with this amount is unknown.",
+      "signal_purpose": "vendor payment"
+    },
+    "source": "quickbooks",
+    "content_archetype": "financial",
+    "ingested_at": "2026-03-29 20:26:29.903425+00",
+    "_field_counts": {
+      "workflows": 2,
+      "problems": 2,
+      "tools": 1,
+      "decisions": 1,
+      "people": 0,
+      "states": 2
+    }
+  },
+  {
+    "signal_id": "a84e25c8-92c3-4bb2-aba5-d5b015b79899",
+    "comprehended_at": "2026-03-29 16:33:11.205+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGX2TPCDP is now a member of the social channel",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "social"
+      },
+      "summary": "A single automated system message records that user U0AGX2TPCDP joined the public Slack channel named social. No other content, discussion, or activity is present in this signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity of U0AGX2TPCDP is not resolvable from this signal alone \u2014 no display name or role is attached. It is unclear whether this join was intentional, invited, or incidental, and whether any activity followed in this channel from this user.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:04.11235+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "d42626d7-869a-42ac-a507-7f6feacf3b2a",
+    "comprehended_at": "2026-03-29 16:33:05.654+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The social channel context suggests this may be informal or non-work communication, but no further content exists to confirm intent. The absence of any reply or reaction may indicate the message was ignored, not yet seen, or simply did not warrant a response.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "sole message sender, user field in message object"
+        }
+      ],
+      "states": [
+        {
+          "label": "thread contains single unreplied message",
+          "grounding": "message_count: 1, last_reply_at: null, participant_count: 1"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "social"
+      },
+      "summary": "A single user posted the word 'Hi' in the public social channel with no replies, no reactions, and no additional context. The message carries no work-related content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Sender name is null, so the identity behind user ID U0AGX2TPCDP cannot be determined from this signal alone. It is unclear whether this message was intended to open a conversation, was sent in error, or is simply a casual greeting with no follow-up expected.",
+      "signal_purpose": "standalone greeting with no actionable content"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:04.073169+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "760e37e6-a8d2-4518-a6ba-b803b5faf70a",
+    "comprehended_at": "2026-03-29 16:32:57.717+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGG3HUTK8 is now a member of #social",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "social"
+      },
+      "summary": "A single automated system message records that user U0AGG3HUTK8 joined the #social channel. There is no conversational content, no discussion, and no other participants involved.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGG3HUTK8 is not resolvable from this signal \u2014 the sender_name field is null. It is unclear whether this join was voluntary, the result of an invitation, or an automated provisioning action.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:04.039232+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "74786285-61f0-4aeb-9cbb-f30ece244c40",
+    "comprehended_at": "2026-03-29 16:32:52.562+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGMP8L0KW is now a member of #social",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "social"
+      },
+      "summary": "A single automated system message records that user U0AGMP8L0KW joined the public #social channel. No conversation, decisions, or substantive content is present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind user ID U0AGMP8L0KW is not resolvable from this signal \u2014 no sender_name is provided. Whether this join was voluntary, part of an onboarding process, or triggered by some other action cannot be determined from this signal alone.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:04.004714+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "047d5b91-2043-4a03-acd2-d18535c63e9b",
+    "comprehended_at": "2026-03-29 16:32:47.241+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The presence of an explicit inviter field suggests U0AMAJ92X3N did not join voluntarily \u2014 they were added by U0AGX2TPCDP. This may reflect an onboarding action, a team or project addition, or access management, but nothing in this signal clarifies the reason.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AMAJ92X3N)",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        },
+        {
+          "label": "inviter (U0AGX2TPCDP)",
+          "grounding": "\"inviter\": \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AMAJ92X3N is now a member of #social",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\", subtype: channel_join"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "social"
+      },
+      "summary": "This signal is a system-generated channel join event. User U0AMAJ92X3N joined the public #social channel, having been invited by user U0AGX2TPCDP. No conversation, decisions, or work content is present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Neither user's name is available \u2014 only IDs are present in the signal. It is not clear why U0AMAJ92X3N was invited, whether this was intentional onboarding, or what the inviter's relationship to the channel is.",
+      "signal_purpose": "user joining channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.950312+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "9228c9b0-c68a-4904-8dbf-284fa2b5fb34",
+    "comprehended_at": "2026-03-29 16:32:38.912+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "<@U0AGX2TPCDP> has joined the channel"
+        }
+      ],
+      "states": [
+        {
+          "label": "user joined engineering channel",
+          "grounding": "<@U0AGX2TPCDP> has joined the channel"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "A user identified only by Slack ID U0AGX2TPCDP joined the public engineering channel. This is a system-generated join notification with no conversational content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity of U0AGX2TPCDP is not resolvable from this signal alone \u2014 no display name or role is present. The reason for joining (invitation, self-join, onboarding) is unknown. No context exists about what this person's presence in the channel implies.",
+      "signal_purpose": "user joined channel notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.88111+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "f8bda34f-0413-4b32-9d48-4787c7e465e6",
+    "comprehended_at": "2026-03-29 16:32:33.604+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "System-generated join messages carry no conversational content. The only meaningful implication is a membership change in the engineering channel. This signal alone provides no insight into the organization's work, workflows, or relationships.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGG3HUTK8 is now a member of the engineering channel",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "A user identified only by ID U0AGG3HUTK8 joined the public engineering channel. The signal contains a single system-generated join notification with no accompanying message, discussion, or reaction.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The user's name is not available in this signal \u2014 sender_name is null and only a Slack user ID is present. It is not known whether this join was intentional, invited, or automated. No context exists for why this person is joining the channel or what their role is.",
+      "signal_purpose": "user joined channel notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.846816+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "3f5fed2d-71d9-4139-a24a-ac1b13375856",
+    "comprehended_at": "2026-03-29 16:32:25.541+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A channel_join event carries weak organizational signal on its own \u2014 it may indicate onboarding, a role change, or routine access provisioning, but none of those interpretations are supported by this signal alone. The engineering channel being public suggests broad internal access rather than restricted membership.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGMP8L0KW is now a member of the engineering channel",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "A single system-generated message records that user U0AGMP8L0KW joined the public engineering channel. There is no conversational content, no discussion, and no other participants active in this signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGMP8L0KW is not resolvable from this signal alone \u2014 sender_name is null. It is unclear whether this join was voluntary, the result of an invitation, or an automated onboarding action. No downstream activity or context follows from this event within the signal.",
+      "signal_purpose": "user joining channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.814799+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "fbfb6fdc-487b-4698-8da9-c17d3858febc",
+    "comprehended_at": "2026-03-29 16:32:17.673+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The rename from 'new-channel' to 'engineering' implies the channel was recently created and is now being formally established with a purposeful name. This may indicate the engineering channel is newly institutionalized rather than long-standing, but that inference cannot be confirmed from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"user\": \"U0AGX2TPCDP\" \u2014 performed the rename action"
+        }
+      ],
+      "states": [
+        {
+          "label": "channel name is now 'engineering'",
+          "grounding": "\"has renamed the channel from 'new-channel' to 'engineering'\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "A Slack system event records that a user (U0AGX2TPCDP) renamed a channel from 'new-channel' to 'engineering'. This is an administrative action, not a conversation. No discussion, reactions, or replies are present.",
+      "problems": [],
+      "decisions": [
+        {
+          "label": "channel renamed from 'new-channel' to 'engineering'",
+          "grounding": "\"has renamed the channel from 'new-channel' to 'engineering'\""
+        }
+      ],
+      "workflows": [],
+      "uncertainty": "The identity of the user who performed the rename is known only by Slack user ID (U0AGX2TPCDP); their name is not present in the signal. The reason for the rename and whether this channel was newly created or pre-existing are not inferable from this signal alone.",
+      "signal_purpose": "channel rename event"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.780265+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 1,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "911c85f9-55c4-4fe6-94b8-c368ab9598b9",
+    "comprehended_at": "2026-03-29 16:32:09.93+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The time callout ('Its 10:35 AM') may suggest urgency or a prompt tied to a scheduled sync or standup. The direct mentions of two specific users implies they are stakeholders or owners of something the roadmap update affects. David Rosenberg creating the Notion page suggests he may own or maintain the roadmap document, though he is not mentioned in the message body.",
+      "tools": [
+        {
+          "label": "Notion",
+          "grounding": "link to https://www.notion.so/Feb-23-3109099846f6801291d5cb8d4b94fefc"
+        }
+      ],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "message sender directing attention to updated roadmaps"
+        },
+        {
+          "label": "mentioned user U0AGMP8L0KW",
+          "grounding": "directly mentioned: <@U0AGMP8L0KW>"
+        },
+        {
+          "label": "mentioned user U0AGG3HUTK8",
+          "grounding": "directly mentioned: <@U0AGG3HUTK8>"
+        },
+        {
+          "label": "David Rosenberg",
+          "grounding": "attachment footer: 'Created by David Rosenberg'"
+        }
+      ],
+      "states": [
+        {
+          "label": "roadmap document updated as of Feb 23",
+          "grounding": "attachment title 'Feb 23' and message text 'check out updated roadmaps'"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "A user in the engineering channel posted a standalone message at 10:35 AM mentioning two colleagues directly and directing them to review updated roadmaps via a Notion link. The linked Notion page is titled 'Feb 23' and was created by David Rosenberg.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The sender's name is not available in the signal (sender_name is null), only their user ID. It is unclear what was updated in the roadmaps or why the two mentioned users specifically needed to review them. No replies or reactions are present, so it is unknown whether the recipients saw or acted on the message.",
+      "signal_purpose": "roadmap update notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.74031+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 1,
+      "decisions": 0,
+      "people": 4,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "6b3d4f7e-650a-40a7-9f8d-f2ee14635acc",
+    "comprehended_at": "2026-03-29 16:31:59.386+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The fact that the join was via invitation rather than self-join suggests some intentionality behind adding this person to the engineering channel, but no context about the purpose is available in this signal.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AMAJ92X3N (joined member)",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        },
+        {
+          "label": "U0AGX2TPCDP (inviter)",
+          "grounding": "\"inviter\": \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AMAJ92X3N is now a member of #engineering",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\", subtype: channel_join"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "engineering"
+      },
+      "summary": "This signal is a system-generated Slack notification indicating that user U0AMAJ92X3N joined the #engineering channel, having been invited by user U0AGX2TPCDP. There is no conversational content, no discussion, and no decisions present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identities behind the user IDs U0AMAJ92X3N and U0AGX2TPCDP are not resolvable from this signal alone. The reason for the invitation and any context around why this person is joining the engineering channel is entirely absent. It is unclear whether this join is related to any ongoing work or project.",
+      "signal_purpose": "user joining channel notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.704706+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "772bbd16-edc1-49cd-8d81-98aa136624a3",
+    "comprehended_at": "2026-03-29 16:31:51.327+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "user joined all-daat channel",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "all-daat"
+      },
+      "summary": "A single automated system message records that user U0AGX2TPCDP joined the all-daat public channel. There is no conversational content, no discussion, and no other participants involved.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind user ID U0AGX2TPCDP is not resolvable from this signal alone, as no sender_name is provided. The reason for joining (invitation, self-join, automated process) is not indicated. No further context about this user's role or purpose in the channel is available from this signal.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:32:49.381068+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "a750d67b-d974-42bd-8e04-9b0cb8c5687f",
+    "comprehended_at": "2026-03-29 16:31:45.594+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A channel join event carries no conversational content and reflects only a membership change. The channel name all-daat suggests this may be an organization-wide or product-specific channel, but no further inference is supportable from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGG3HUTK8 is now a member of all-daat",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "all-daat"
+      },
+      "summary": "A user identified only by ID U0AGG3HUTK8 joined the public Slack channel all-daat. The signal contains no other content \u2014 no messages, replies, reactions, or discussion.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity of U0AGG3HUTK8 is not resolvable from this signal alone \u2014 no sender name is present. It is unclear whether this join was intentional, invited, or automated. No context is available about why this person joined or what their role is.",
+      "signal_purpose": "user joined channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:32:49.303108+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "7c452b29-289b-4717-b847-2b5374aee79c",
+    "comprehended_at": "2026-03-29 16:31:38.495+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGMP8L0KW is now a member of all-daat",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "all-daat"
+      },
+      "summary": "A single automated system message records that user U0AGMP8L0KW joined the public channel all-daat. There is no conversational content, no discussion, and no replies.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGMP8L0KW is not resolvable from this signal \u2014 no display name or profile information is present. It is unclear whether this join was voluntary, the result of an invitation, or an automated action.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:32:49.217601+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "a4f4b865-12ed-4785-838a-23481fa4b35d",
+    "comprehended_at": "2026-03-29 16:31:32.899+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The presence of an inviter field indicates U0AHDNFPAG0 was added by U0AGX2TPCDP rather than joining independently, which may imply an onboarding action or deliberate access grant, but this cannot be confirmed from the signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user U0AHDNFPAG0",
+          "grounding": "\"<@U0AHDNFPAG0> has joined the channel\""
+        },
+        {
+          "label": "inviting user U0AGX2TPCDP",
+          "grounding": "\"inviter\": \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AHDNFPAG0 is now a member of all-daat",
+          "grounding": "\"<@U0AHDNFPAG0> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "all-daat"
+      },
+      "summary": "A system-generated message records that user U0AHDNFPAG0 joined the public channel all-daat, invited by user U0AGX2TPCDP. No other content is present in this signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identities behind both user IDs are unknown \u2014 no display names are resolved in this signal. The reason for the invitation and any context around it are not present.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:32:49.093488+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "e4d60d17-19ea-4f90-a0d2-c8d0dd6d4fb8",
+    "comprehended_at": "2026-03-29 16:31:25.834+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The inviter field indicates this was not a self-join; someone with channel access chose to add this user. The channel name all-daat suggests it may be a broad or general channel for the DAAT product or team, which could make this membership addition more organizationally significant than a routine channel join, but that inference cannot be confirmed from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AMAJ92X3N)",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        },
+        {
+          "label": "inviter (U0AGX2TPCDP)",
+          "grounding": "\"inviter\": \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "user U0AMAJ92X3N is now a member of all-daat",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "all-daat"
+      },
+      "summary": "A single automated system message records that user U0AMAJ92X3N joined the public Slack channel all-daat, having been invited by user U0AGX2TPCDP. No conversation, decisions, or work discussion are present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identities behind both user IDs (U0AMAJ92X3N and U0AGX2TPCDP) are not resolvable from this signal alone, as no display names are provided. The reason for the invitation and any organizational context around this membership change are unknown.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:32:48.938187+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "989c6d5a-5a7b-4fb7-bc40-f30afdb6beaa",
+    "comprehended_at": "2026-03-29 16:31:15.639+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGX2TPCDP is now a member of the marketing channel",
+          "grounding": "\"<@U0AGX2TPCDP> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A user identified only by Slack ID U0AGX2TPCDP joined the public marketing channel. This is a system-generated join notification with no conversational content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGX2TPCDP is not resolvable from this signal \u2014 no display name or role information is present. It is unknown whether this join was voluntary, the result of an invitation, or part of an onboarding process. No intent or context accompanies the event.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.379451+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "3ff16d97-bdc5-4d38-8e22-0b07005715c0",
+    "comprehended_at": "2026-03-29 16:31:08.794+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGG3HUTK8 is now a member of #marketing",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single automated system message records that user U0AGG3HUTK8 joined the #marketing channel. There is no conversational content, no replies, and no reactions.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGG3HUTK8 is not resolvable from this signal \u2014 sender_name is null. The reason for joining (invited, self-joined, newly onboarded, etc.) is not indicated. No context about the person's role or purpose in the channel is present.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.344974+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "cc0c0bc2-a349-4abc-9158-daa8584a7097",
+    "comprehended_at": "2026-03-29 16:31:03.043+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The question is posted in a marketing channel, which may suggest either that this is a marketing-specific API integration (e.g., an ad platform or analytics tool) or that the sender defaulted to a familiar channel rather than a technical one. The informality and brevity of the message ('Hey, how should we integrate this new api') suggests the sender expected a quick conversational answer, possibly from someone they know. The absence of any reply or reaction may indicate the question went unnoticed or was directed at the wrong audience.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8 (sender, unnamed)",
+          "grounding": "message sender with user ID U0AGG3HUTK8"
+        }
+      ],
+      "states": [
+        {
+          "label": "API integration unstarted or unplanned",
+          "grounding": "\"how should we integrate this new api\" \u2014 question implies no approach has been established"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single message posted in the public marketing channel asks how a new API should be integrated. No context about which API is provided, no replies have been received, and no decisions have been made. The thread is unanswered.",
+      "problems": [
+        {
+          "label": "API integration approach undefined",
+          "grounding": "\"how should we integrate this new api\""
+        }
+      ],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Which API is being referenced is entirely unknown. It is unclear who the message is directed at, whether this belongs in the marketing channel or a technical channel, and whether any prior discussion about this API exists elsewhere. The sender's name is not available. No response or acknowledgment has been recorded.",
+      "signal_purpose": "API integration question in marketing channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.307118+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 1,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "96cc3b46-e22e-449d-9c8f-ab7c07ff7b06",
+    "comprehended_at": "2026-03-29 16:30:52.867+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "This message was posted in a public, work-facing channel rather than a direct message, which may indicate either impulsiveness or an intent to make the hostility visible to others. The tone and content suggest a potential workplace conduct issue. No organizational response is visible in this signal.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "message sender field: U0AGX2TPCDP"
+        },
+        {
+          "label": "Mike (recipient of message)",
+          "grounding": "\"Shut the fuck up mike, nobody like u\""
+        }
+      ],
+      "states": [
+        {
+          "label": "hostile interpersonal exchange present in public marketing channel",
+          "grounding": "message posted to channel_name: marketing, channel_type: public"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single standalone message was posted in the public marketing channel by an unidentified sender directed at someone named Mike. The message is explicitly hostile and insulting in nature. There is no thread, no replies, and no reactions.",
+      "problems": [
+        {
+          "label": "hostile message directed at named colleague",
+          "grounding": "\"Shut the fuck up mike, nobody like u\""
+        }
+      ],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "It is unclear what prompted this message or what prior interaction, if any, led to it. Mike's identity beyond a first name is unknown. Whether this represents an isolated outburst or reflects an ongoing interpersonal conflict cannot be determined from this signal alone. No sender name is available in the metadata.",
+      "signal_purpose": "hostile personal message directed at a named individual"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.276567+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 1,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "d92aeaa8-0768-43d0-b4ab-2c6b3181de81",
+    "comprehended_at": "2026-03-29 16:30:42.176+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A standalone 'ok' in a public channel typically implies acknowledgment of something, but without any visible prior context, the referent is completely opaque. The absence of thread replies, reactions, or participants suggests this message did not generate engagement \u2014 or that engagement occurred elsewhere.",
+      "tools": [],
+      "people": [],
+      "states": [],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single message containing only the word 'ok' was posted in the public marketing channel. There are no replies, reactions, mentions, or additional context. The sender name is not available in the signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "It is not possible to determine what this message is acknowledging, responding to, or initiating. There is no prior message, thread, or context visible in this signal. The sender's identity is only available as a user ID. Whether this is a reply to an off-channel conversation, a confirmation of something, or an inadvertent send cannot be determined.",
+      "signal_purpose": "single-word acknowledgment with no discernible intent"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.228279+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 0,
+      "states": 0
+    }
+  },
+  {
+    "signal_id": "ad3ef627-bdd8-434d-8149-87f6d021430c",
+    "comprehended_at": "2026-03-29 16:30:34.564+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGMP8L0KW is now a member of the marketing channel",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A user identified only by ID U0AGMP8L0KW joined the public marketing channel. The signal contains only the system-generated join notification and no conversational content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity of U0AGMP8L0KW is not resolvable from this signal \u2014 no display name or role is present. The reason for joining, whether invited or self-joined, is not indicated. No downstream activity or intent can be inferred from a join event alone.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.19412+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "9eca3a31-3e91-40cc-9d19-8da40463bfc5",
+    "comprehended_at": "2026-03-29 16:30:28.699+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The phrasing 'this is true, sorry mike' implies a prior exchange in which the sender disagreed with or resisted something Mike said, and is now backing down. The apology suggests mild social friction that has been acknowledged. The full conversation context exists elsewhere and is absent from this signal.",
+      "tools": [],
+      "people": [
+        {
+          "label": "Mike",
+          "grounding": "\"sorry mike\""
+        }
+      ],
+      "states": [
+        {
+          "label": "sender has conceded a prior point",
+          "grounding": "\"This is true, sorry mike\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single standalone message in the marketing channel where the sender concedes that something is true and apologizes to someone named Mike. No thread context is present, so the subject of the acknowledgment is unknown.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The subject being conceded is entirely unknown \u2014 there is no prior message or thread context in this signal. It is unclear what 'this' refers to, what the disagreement or discussion was about, and what prompted the apology. The sender's identity is not named in the signal metadata. Whether this resolves anything or is part of a larger ongoing discussion cannot be determined.",
+      "signal_purpose": "acknowledgment or concession directed at Mike"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.155105+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "020e73d6-c24c-441d-b1f5-359d1db633bd",
+    "comprehended_at": "2026-03-29 16:30:20.244+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The presence of an inviter field suggests this was not a self-initiated join \u2014 someone with channel access added this user. This may imply a deliberate access grant, but the nature of that decision is not visible in this signal.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AGGF3NL3Y)",
+          "grounding": "\"<@U0AGGF3NL3Y> has joined the channel\""
+        },
+        {
+          "label": "inviter (U0AGX2TPCDP)",
+          "grounding": "\"inviter\": \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGGF3NL3Y is now a member of the marketing channel",
+          "grounding": "\"<@U0AGGF3NL3Y> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single system-generated message records that user U0AGGF3NL3Y joined the public marketing channel. The join was initiated by inviter U0AGX2TPCDP. There is no conversational content, discussion, or other activity in this signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identities behind U0AGGF3NL3Y and U0AGX2TPCDP are not resolvable from this signal \u2014 no display names are provided. The reason the user was invited and their role in the marketing channel are unknown. Whether this join is significant (e.g., a new hire, a role change, or routine access) cannot be determined.",
+      "signal_purpose": "user joining marketing channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.12418+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "63c2e773-5a71-41cd-b238-7fdb589f9609",
+    "comprehended_at": "2026-03-29 16:30:11.581+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The brevity and directness of 'say something' suggests either a casual relationship between the two users or an implied shared understanding of what is being asked. The message does not provide any context, which may mean the conversation or expectation was established elsewhere. It is possible this is a test message or a low-stakes ping rather than substantive work communication.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "user field on the message"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "mention in message text: '<@U0AGGF3NL3Y> say something'"
+        }
+      ],
+      "states": [
+        {
+          "label": "mentioned user has not yet responded",
+          "grounding": "message_count: 1, last_reply_at: null, reaction_count: 0"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single message was posted in the public marketing channel by one user, directly mentioning another user with the prompt 'say something.' There are no replies, reactions, or additional context. The message appears to be a prompt or nudge directed at the mentioned user, though the purpose is not explained.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The intent behind 'say something' is entirely unclear \u2014 it could be a test, a playful nudge, a request to contribute to an ongoing effort, or something else entirely. Neither user's name is available, so roles and relationships cannot be determined. There is no indication of what the mentioned user is expected to say or in what context.",
+      "signal_purpose": "direct prompt to another user"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.084569+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "591b676f-a0c3-4c15-bd6f-08db5e7efd50",
+    "comprehended_at": "2026-03-29 16:30:01.109+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A channel rename from 'engineering' to 'marketing' implies a meaningful change in the intended audience or purpose of this channel. It may suggest the channel was previously used by or for an engineering team and is being reassigned to marketing use, or that it was misnamed originally. The absence of any discussion around this action suggests either that the decision was made elsewhere or that the rename was uncontroversial.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"user\": \"U0AGX2TPCDP\" \u2014 performed the rename action"
+        }
+      ],
+      "states": [
+        {
+          "label": "channel is now named marketing (previously engineering)",
+          "grounding": "\"has renamed the channel from 'engineering' to 'marketing'\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A Slack system event records that a user (U0AGX2TPCDP) renamed a public channel from 'engineering' to 'marketing'. This is a single administrative action with no surrounding conversation, replies, or reactions.",
+      "problems": [],
+      "decisions": [
+        {
+          "label": "channel renamed from engineering to marketing",
+          "grounding": "\"has renamed the channel from 'engineering' to 'marketing'\""
+        }
+      ],
+      "workflows": [],
+      "uncertainty": "It is not possible to determine from this signal alone why the channel was renamed, whether this reflects a repurposing of the channel, a correction of a prior mistake, or an organizational restructuring. The identity of the user who performed the action is only known by their Slack user ID; their name is not present in this signal.",
+      "signal_purpose": "channel rename from engineering to marketing"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.050528+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 1,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "d8e80d26-ce32-49fd-a87f-914709a4407d",
+    "comprehended_at": "2026-03-29 16:29:52.537+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Setting a channel topic in a marketing channel to a specific content type may signal an intentional scoping of the channel's purpose or an ongoing workstream being formally named. This action implies someone with at least informal authority to define the channel's focus, though nothing in the signal confirms formal ownership.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "\"user\": \"U0AGX2TPCDP\" \u2014 sole participant who set the channel topic"
+        }
+      ],
+      "states": [
+        {
+          "label": "marketing channel topic is Blog Content Creation",
+          "grounding": "\"topic\": \"Blog Content Creation\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single user (U0AGX2TPCDP) updated the topic of the public marketing channel to 'Blog Content Creation'. No other messages, replies, or reactions are present in this signal.",
+      "problems": [],
+      "decisions": [
+        {
+          "label": "channel topic set to Blog Content Creation",
+          "grounding": "\"set the channel topic: Blog Content Creation\""
+        }
+      ],
+      "workflows": [],
+      "uncertainty": "It is unclear why the topic was set at this moment, whether it reflects a new focus or formalizes an existing one, and who user U0AGX2TPCDP is by name. No sender name is available in the signal.",
+      "signal_purpose": "channel topic update"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:03.00712+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 1,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "f7e41784-aa29-499e-a8df-46ed6b2ae926",
+    "comprehended_at": "2026-03-29 16:29:43.519+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The phrasing 'Heres the ready post' implies a workflow exists upstream where content is drafted and then handed off in this channel when complete. The channel context (marketing) and the declarative framing suggest this is a delivery action, not a request for feedback \u2014 the sender is depositing finished work, not opening a discussion. The absence of any reaction or reply may indicate this is a one-way drop into a shared space rather than a collaborative exchange.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "sender of the message containing the post"
+        }
+      ],
+      "states": [
+        {
+          "label": "AI cost optimization post is ready",
+          "grounding": "\"Heres the ready post.\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single message posted in the marketing channel shares a completed long-form post titled 'AI Cost Optimization: A Strategic Imperative for Modern Businesses.' The sender indicates the content is ready, suggesting it has reached a shareable or publishable state. The post covers AI cost drivers, optimization strategies including MLOps and FinOps practices, and governance recommendations.",
+      "problems": [],
+      "decisions": [
+        {
+          "label": "post marked as ready for use",
+          "grounding": "\"Heres the ready post.\""
+        }
+      ],
+      "workflows": [
+        {
+          "label": "content readiness handoff",
+          "grounding": "\"Heres the ready post.\""
+        }
+      ],
+      "uncertainty": "It is unclear who the intended recipient or reviewer is, as there are no mentions or replies. The next step \u2014 whether this is for review, scheduling, or immediate publishing \u2014 is not stated. The sender's name is not available, only their user ID. The '9:45 AM' prefix in the message text may indicate a scheduled time for the post or a copy artifact, but its meaning is not explicitly explained.",
+      "signal_purpose": "sharing a ready-to-publish marketing post"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.953485+00",
+    "_field_counts": {
+      "workflows": 1,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 1,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "71d57f9c-6f5e-47be-92f5-e0c8978d4f93",
+    "comprehended_at": "2026-03-29 16:29:32.739+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The presence of an inviter field indicates the join was not self-initiated; U0AGX2TPCDP deliberately added U0AMAJ92X3N to the marketing channel. This may imply a change in the joining user's role or responsibilities related to marketing, but that cannot be confirmed from this signal.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AMAJ92X3N)",
+          "grounding": "<@U0AMAJ92X3N> has joined the channel"
+        },
+        {
+          "label": "inviter (U0AGX2TPCDP)",
+          "grounding": "inviter field: U0AGX2TPCDP"
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AMAJ92X3N is now a member of the marketing channel",
+          "grounding": "<@U0AMAJ92X3N> has joined the channel"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "marketing"
+      },
+      "summary": "A single system-generated join event in the public marketing channel. User U0AMAJ92X3N was invited by user U0AGX2TPCDP and joined the channel. No conversation, decisions, or discussion are present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The names corresponding to user IDs U0AMAJ92X3N and U0AGX2TPCDP are not available in this signal. The reason for the invitation \u2014 whether routine onboarding, project access, or another cause \u2014 cannot be determined from this signal alone.",
+      "signal_purpose": "user joining marketing channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.906389+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "70f8e5f4-96d0-425a-9957-48749784d7fa",
+    "comprehended_at": "2026-03-29 16:29:25.031+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A channel_join event in #general may indicate onboarding, a role change, or an administrative action, but none of those interpretations are supported by this signal alone. The signal carries no communicative intent beyond the automated notification.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "<@U0AGX2TPCDP> has joined the channel"
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGX2TPCDP newly joined #general",
+          "grounding": "<@U0AGX2TPCDP> has joined the channel"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single automated system message records that user U0AGX2TPCDP joined the #general channel. There is no conversational content, no discussion, and no other participants involved.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The real name or role of user U0AGX2TPCDP is not available in this signal. It is unclear whether this join was a first-time entry, a rejoining after removal, or triggered by any specific organizational event.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.822834+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "8a017541-de23-444b-863e-20855d8761e3",
+    "comprehended_at": "2026-03-29 16:29:18.724+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": null,
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGG3HUTK8",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGG3HUTK8 is now a member of #general",
+          "grounding": "\"<@U0AGG3HUTK8> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single automated system message records that user U0AGG3HUTK8 joined the #general channel. There is no conversational content, no discussion, and no other participants.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind U0AGG3HUTK8 is not resolvable from this signal \u2014 sender_name is null. It is unclear whether this join was voluntary, the result of an invitation, or an automated onboarding action.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.784853+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "4b06b7bc-02ad-4640-b721-909c07ce2144",
+    "comprehended_at": "2026-03-29 16:29:13.627+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Sending a standalone 'hello' mention in a public general channel rather than a DM is a minor but notable choice. It may suggest an intent to make contact publicly, or the sender may simply default to public channels. The signal carries no organizational weight on its own.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender U0AGX2TPCDP",
+          "grounding": "user field on the message"
+        },
+        {
+          "label": "mentioned user U0AGGF3NL3Y",
+          "grounding": "<@U0AGGF3NL3Y> hello"
+        }
+      ],
+      "states": [
+        {
+          "label": "message unanswered \u2014 no replies recorded",
+          "grounding": "message_count: 1, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single user sent a brief greeting \u2014 'hello' \u2014 directly mentioning one other user in the public general channel. There are no replies, no reactions, and no additional content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "It is not possible to determine the relationship between the sender and the mentioned user, whether this greeting was expected or coordinated, or whether it is the opening of a longer interaction that has not yet occurred.",
+      "signal_purpose": "direct greeting to a specific user"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.654229+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "bd80b8a0-fd26-40ae-9f5f-27597e3feaed",
+    "comprehended_at": "2026-03-29 16:29:05.814+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Channel join notifications in Slack are system-generated and carry no organizational meaning on their own. The presence of an inviter field suggests this was not a self-join but was initiated by U0AGX2TPCDP, which may imply a deliberate onboarding or access-granting action, but this cannot be confirmed from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AGGF3NL3Y)",
+          "grounding": "\"has joined the channel\", user: U0AGGF3NL3Y"
+        },
+        {
+          "label": "inviting user (U0AGX2TPCDP)",
+          "grounding": "inviter: U0AGX2TPCDP"
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGGF3NL3Y is now a member of #general",
+          "grounding": "\"has joined the channel\", subtype: channel_join"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A user (U0AGGF3NL3Y) joined the #general channel, invited by another user (U0AGX2TPCDP). The signal contains only the system-generated join notification and no conversational content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identities behind the user IDs U0AGGF3NL3Y and U0AGX2TPCDP are not resolvable from this signal alone. It is unclear whether this was an active invitation or an automated onboarding action. No sender_name is provided.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.608687+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "d3b920f6-dbcd-4ec5-91a1-9d750f7a4c13",
+    "comprehended_at": "2026-03-29 16:28:57.76+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "This message carries no meaningful work content. Its presence in a public general channel rather than a DM may suggest a casual team culture or a public nudge to get someone's attention. No further inference is warranted from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "message sender field"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "\"<@U0AGGF3NL3Y> whats up\""
+        }
+      ],
+      "states": [],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single message was posted in the general channel by user U0AGX2TPCDP, directing an informal greeting \u2014 'whats up' \u2014 at user U0AGGF3NL3Y. There are no replies, reactions, or further context.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The purpose of the message beyond a casual greeting is unknown. It is unclear whether this is a precursor to a work-related conversation, a social check-in, or something else entirely. Neither sender nor recipient names are available \u2014 only user IDs.",
+      "signal_purpose": "informal greeting or check-in"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.552934+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 0
+    }
+  },
+  {
+    "signal_id": "39ed8236-48a2-4d19-b8fb-13cbdd642795",
+    "comprehended_at": "2026-03-29 16:28:50.625+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The phrasing is informal and colloquial, suggesting a casual relationship between the two users, or at minimum a casual communication style in this channel. The use of 'general' as the channel rather than a DM is notable \u2014 the sender may have been unable to reach the other person privately, or the channel norms permit this kind of informal contact. No organizational work is visible in the content itself.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "message sender field"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "<@U0AGGF3NL3Y> talk to me baby"
+        }
+      ],
+      "states": [
+        {
+          "label": "message sent with no reply and no reactions",
+          "grounding": "message_count: 1, reaction_count: 0, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single message was posted in the public general channel by one user, directly mentioning another user with the phrase 'talk to me baby.' No reply has been received and no reactions were added. The message contains no substantive work content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The intent of the message is unclear \u2014 it could be casual, urgent, or personal. No names are resolved for either the sender or the mentioned user. It is unknown whether this prompted an out-of-band conversation elsewhere, or whether the mentioned user saw or responded to it.",
+      "signal_purpose": "informal direct address to a specific user"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.503368+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "ad73e980-0823-4102-be7d-9f1d3f224d4d",
+    "comprehended_at": "2026-03-29 16:28:40.874+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The extreme brevity of the message ('now?') implies a shared prior context between sender and recipient that is not present in this signal. The use of a direct mention in the public general channel rather than a DM may reflect urgency, habit, or an informal team norm. The absence of any reply suggests either the conversation moved to another channel, a call, or the recipient has not yet responded.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "user field on the message"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "<@U0AGGF3NL3Y> now?"
+        }
+      ],
+      "states": [
+        {
+          "label": "no reply received",
+          "grounding": "last_reply_at: null, message_count: 1"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single-message thread in the general channel where one user pings another with only the word 'now?', suggesting a prompt to connect or begin something immediately. No reply has been recorded.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The purpose of 'now?' is entirely unclear from this signal alone \u2014 it could be a request to join a call, start a task, or continue a prior conversation. No context precedes this message in the signal. Neither participant is named. It is unknown whether a response occurred outside this thread.",
+      "signal_purpose": "availability check or prompt directed at a specific user"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.464009+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "49643705-f7a6-4ade-b7c1-7cd665f0a5eb",
+    "comprehended_at": "2026-03-29 16:28:31.557+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "Posting an availability request in a public general channel rather than a direct message is slightly unusual and may suggest the sender lacks a direct message channel with the recipient, or it may be incidental. The informal phrasing ('can u talk') implies some degree of familiarity or urgency, but neither can be confirmed from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "message sender field"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "<@U0AGGF3NL3Y> can u talk"
+        }
+      ],
+      "states": [
+        {
+          "label": "conversation not yet initiated \u2014 awaiting response",
+          "grounding": "message_count: 1, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A user sent a single message in the general channel asking another user if they are available to talk. There is no reply and no additional context about the topic.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The subject or purpose of the requested conversation is entirely unknown. It is unclear whether the mention was seen or whether a response occurred outside this thread. Sender and recipient identities are only known by user ID, not by name.",
+      "signal_purpose": "availability check between two individuals"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.409505+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "eab898f3-0b16-4ce4-b94a-82eaabbe8591",
+    "comprehended_at": "2026-03-29 16:26:09.674+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "A lone 'hi' in a general channel with no response may indicate a new user testing access, an accidental send, or the beginning of an intended conversation that never materialized. No organizational context can be inferred from the content itself.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGX2TPCDP",
+          "grounding": "sole message sender, user field in message object"
+        }
+      ],
+      "states": [
+        {
+          "label": "message unanswered \u2014 no replies, no reactions",
+          "grounding": "message_count: 1, reaction_count: 0, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single user posted the word 'hi' in the public general channel. There are no replies, no reactions, and no other participants. The message contains no work content.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Sender identity is not resolvable from this signal \u2014 sender_name is null and only a user ID is present. It is unclear whether this message was intended to start a conversation, was a test, or was sent by mistake.",
+      "signal_purpose": "standalone greeting message"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.368814+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "0cbb488b-dd17-4171-a1c2-c3f16952e909",
+    "comprehended_at": "2026-03-29 16:26:02.793+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "This message carries no apparent work or organizational significance. It may reflect casual channel culture or a test of a bot. The general channel and informal phrasing suggest a low-stakes, social or playful exchange rather than any work-related communication.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGX2TPCDP)",
+          "grounding": "user field on message"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "\"<@U0AGGF3NL3Y> tell me a joke\""
+        }
+      ],
+      "states": [
+        {
+          "label": "message unanswered \u2014 no replies",
+          "grounding": "message_count: 1, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single standalone message in the general channel where one user mentions another and asks them to tell a joke. There are no replies, no reactions, and no thread activity.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity of both users is unknown beyond their Slack user IDs. It is unclear whether the mentioned user (U0AGGF3NL3Y) is a person or a bot. No response has been recorded, so it is unknown whether the request was fulfilled.",
+      "signal_purpose": "informal joke request"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.329877+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "15be3a8e-5d7d-4a91-a81f-a78d3d54dcbb",
+    "comprehended_at": "2026-03-29 16:25:55.389+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "This is a purely social or ambient message in a public general channel. It carries no apparent work content. The channel being 'general' is consistent with casual communication norms, but nothing beyond that can be inferred from this signal alone.",
+      "tools": [],
+      "people": [
+        {
+          "label": "sender (U0AGMP8L0KW)",
+          "grounding": "message sender field: user U0AGMP8L0KW"
+        },
+        {
+          "label": "mentioned user (U0AGGF3NL3Y)",
+          "grounding": "\"<@U0AGGF3NL3Y> what up\""
+        }
+      ],
+      "states": [
+        {
+          "label": "message unanswered \u2014 no replies recorded",
+          "grounding": "message_count: 1, last_reply_at: null"
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single informal message sent in the general channel. The sender directly mentions another user with a casual greeting ('what up'). No reply has been recorded, and there is no substantive content, work discussion, or context present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Neither participant's name is known from this signal \u2014 both are identified only by user IDs. It is unclear whether this is a prelude to a work conversation or purely social. No reply is present, so whether the mentioned user responded is unknown.",
+      "signal_purpose": "informal greeting or casual check-in"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.290865+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "852fe7d3-0a1c-4c9c-9db7-f06054fc71d2",
+    "comprehended_at": "2026-03-29 16:25:46.659+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "The presence of an inviter field suggests this was not a self-join; someone with access deliberately added this user to the channel. This may carry organizational significance \u2014 onboarding, role change, or project inclusion \u2014 but nothing in the signal itself confirms any of that.",
+      "tools": [],
+      "people": [
+        {
+          "label": "joining user (U0AMAJ92X3N)",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        },
+        {
+          "label": "inviting user (U0AGX2TPCDP)",
+          "grounding": "inviter field: \"U0AGX2TPCDP\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AMAJ92X3N is now a member of #general",
+          "grounding": "\"<@U0AMAJ92X3N> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "This signal is a single system-generated channel_join event in #general. User U0AMAJ92X3N joined the channel, invited by user U0AGX2TPCDP. No conversation, decisions, or work content is present.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "Neither the joining user nor the inviter is identified by name in this signal \u2014 only by Slack user IDs. It is not possible to determine from this signal alone who these individuals are, what their roles are, or why the invitation was extended.",
+      "signal_purpose": "user joining channel"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.244385+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 2,
+      "states": 1
+    }
+  },
+  {
+    "signal_id": "cfe1be91-297e-4f09-b805-653b726577a6",
+    "comprehended_at": "2026-03-29 16:25:38.607+00",
+    "model": "claude-sonnet-4-6",
+    "comprehension": {
+      "tacit": "This is a system-generated event, not a human communication. It carries no organizational meaning beyond membership state change. No work, intent, or context can be inferred from it.",
+      "tools": [],
+      "people": [
+        {
+          "label": "U0AGMP8L0KW",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "states": [
+        {
+          "label": "U0AGMP8L0KW has joined #general",
+          "grounding": "\"<@U0AGMP8L0KW> has joined the channel\""
+        }
+      ],
+      "context": {
+        "source": "slack",
+        "secondary": null,
+        "primary_label": "general"
+      },
+      "summary": "A single automated system message records that user U0AGMP8L0KW joined the #general channel. There is no conversational content, discussion, or human-authored message in this signal.",
+      "problems": [],
+      "decisions": [],
+      "workflows": [],
+      "uncertainty": "The identity behind the user ID U0AGMP8L0KW is not resolvable from this signal. It is unclear whether this join was a new account creation, a reinvitation, or a first-time entry. No sender_name is provided.",
+      "signal_purpose": "channel join notification"
+    },
+    "source": "slack",
+    "content_archetype": "conversational",
+    "ingested_at": "2026-03-29 20:03:02.691427+00",
+    "_field_counts": {
+      "workflows": 0,
+      "problems": 0,
+      "tools": 0,
+      "decisions": 0,
+      "people": 1,
+      "states": 1
+    }
+  }
+];
+
+const FIELDS = ['workflows','problems','tools','decisions','people','states'];
+const FIELD_ICONS = {
+  workflows: '⇄', problems: '!', tools: '◈', decisions: '◉', people: '◎', states: '◆'
+};
+const SOURCE_COLORS = {
+  slack: 'var(--slack)', notion: 'var(--notion)', quickbooks: 'var(--quickbooks)'
+};
+
+let state = {
+  sourceFilter: null,      // null = all
+  hasFilter: null,         // field name or null
+  searchQuery: '',
+  activeLabelFilter: null, // {field, label} or null
+  selectedSignalId: null
+};
+
+function sourceBadge(source, size='sm') {
+  return `<span class="source-pill ${source}">${source}</span>`;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) + ' ' +
+    d.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+}
+
+function renderStats() {
+  const agg = AGGREGATES;
+  const s = agg.source_counts;
+  const ft = agg.field_totals;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-label">Signals</div>
+      <div class="stat-value">${agg.total_signals}</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Sources</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
+        ${Object.entries(s).map(([src, cnt]) => `<span class="source-pill ${src}">${src} ${cnt}</span>`).join('')}
+      </div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Extracted items</div>
+      <div class="stat-fields">
+        ${FIELDS.map(f => `<div class="field-chip">${f} <span>${ft[f]}</span></div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderFilters() {
+  const sources = ['slack', 'notion', 'quickbooks'];
+  document.getElementById('filterBar').innerHTML = `
+    <label>Source</label>
+    <button class="filter-btn all ${!state.sourceFilter ? 'active' : ''}" onclick="setSource(null)">All</button>
+    ${sources.map(s => `<button class="filter-btn ${s} ${state.sourceFilter===s?'active':''}" onclick="setSource('${s}')">${s}</button>`).join('')}
+    <div class="filter-sep"></div>
+    <label>Has</label>
+    ${FIELDS.map(f => `<button class="has-filter ${state.hasFilter===f?'active':''}" onclick="setHas('${f}')">${f}</button>`).join('')}
+    <div class="filter-sep"></div>
+    <input class="search-input" type="text" placeholder="Search purpose, summary…" id="searchInput" value="${escHtml(state.searchQuery)}" oninput="setSearch(this.value)">
+    ${(state.sourceFilter||state.hasFilter||state.searchQuery||state.activeLabelFilter) ?
+      `<button class="clear-btn" onclick="clearAll()">Clear all</button>` : ''}
+    <span class="result-count" id="resultCount"></span>
+  `;
+  // re-focus search if needed
+  const si = document.getElementById('searchInput');
+  if (si && document.activeElement && document.activeElement.id === 'searchInput') si.focus();
+}
+
+function setSource(s) { state.sourceFilter = s; render(); }
+function setHas(f) { state.hasFilter = state.hasFilter===f ? null : f; render(); }
+function setSearch(q) { state.searchQuery = q; renderSignals(); renderFilters(); }
+function clearAll() { state.sourceFilter=null; state.hasFilter=null; state.searchQuery=''; state.activeLabelFilter=null; render(); }
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getFilteredSignals() {
+  return SIGNALS.filter(sig => {
+    if (state.sourceFilter && sig.source !== state.sourceFilter) return false;
+    if (state.hasFilter && (!sig.comprehension[state.hasFilter] || sig.comprehension[state.hasFilter].length===0)) return false;
+    if (state.searchQuery) {
+      const q = state.searchQuery.toLowerCase();
+      const purpose = (sig.comprehension.signal_purpose||'').toLowerCase();
+      const summary = (sig.comprehension.summary||'').toLowerCase();
+      if (!purpose.includes(q) && !summary.includes(q)) return false;
+    }
+    if (state.activeLabelFilter) {
+      const {field, label} = state.activeLabelFilter;
+      const items = sig.comprehension[field]||[];
+      if (!items.some(i => i.label===label)) return false;
+    }
+    return true;
+  });
+}
+
+function renderLeftPanel() {
+  const agg = AGGREGATES;
+  let html = '';
+  for (const field of FIELDS) {
+    const items = agg.label_freq[field];
+    const isActive = state.activeLabelFilter && state.activeLabelFilter.field===field;
+    html += `<div class="lp-section" id="lps-${field}">
+      <div class="lp-section-head" onclick="toggleSection('${field}')">
+        <span>${field}</span>
+        <span class="lp-chevron" id="chev-${field}">▾</span>
+      </div>
+      <div class="lp-section-body" id="lpb-${field}">`;
+    for (const item of items) {
+      const active = isActive && state.activeLabelFilter.label===item.label;
+      const dots = Object.entries(item.sources).map(([src,cnt]) =>
+        `<span class="lp-dot ${src}" title="${src}: ${cnt}"></span>`).join('');
+      html += `<div class="lp-item ${active?'active':''}" onclick="setLabelFilter('${field}','${escHtml(item.label)}')">
+        <div class="lp-source-dots">${dots}</div>
+        <span class="lp-item-label" title="${escHtml(item.label)}">${escHtml(item.label)}</span>
+        <span class="lp-item-count">${item.count}</span>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+  document.getElementById('leftPanel').innerHTML = html;
+}
+
+function toggleSection(field) {
+  const sec = document.getElementById(`lps-${field}`);
+  sec.classList.toggle('lp-collapsed');
+  const chev = document.getElementById(`chev-${field}`);
+  chev.textContent = sec.classList.contains('lp-collapsed') ? '▸' : '▾';
+}
+
+function setLabelFilter(field, label) {
+  if (state.activeLabelFilter && state.activeLabelFilter.field===field && state.activeLabelFilter.label===label) {
+    state.activeLabelFilter = null;
+  } else {
+    state.activeLabelFilter = {field, label};
+  }
+  render();
+}
+
+function renderSignals() {
+  const filtered = getFilteredSignals();
+  const rc = document.getElementById('resultCount');
+  if (rc) rc.textContent = `${filtered.length} / ${SIGNALS.length} signals`;
+
+  let html = '';
+  if (filtered.length===0) {
+    html = `<div class="no-results">No signals match the current filters.</div>`;
+  } else {
+    for (const sig of filtered) {
+      const c = sig.comprehension;
+      const selected = state.selectedSignalId===sig.signal_id;
+      const chips = FIELDS.map(f => {
+        const n = sig._field_counts[f]||0;
+        return `<span class="card-chip ${n>0?'has-items':''}">${f.slice(0,3)} ${n>0 ? `<span class="chip-n">${n}</span>` : '0'}</span>`;
+      }).join('');
+      html += `<div class="signal-card ${selected?'selected':''}" onclick="openDetail('${sig.signal_id}')">
+        <div class="card-top">
+          <div class="card-badge">${sourceBadge(sig.source)}</div>
+          <div class="card-purpose">${escHtml(c.signal_purpose||'')}</div>
+        </div>
+        ${c.context&&c.context.primary_label ? `<div class="card-primary">${escHtml(c.context.primary_label)}</div>` : ''}
+        <div class="card-summary">${escHtml(c.summary||'')}</div>
+        <div class="card-chips">${chips}</div>
+        <div class="card-meta">${formatDate(sig.comprehended_at)} &middot; ${sig.model||''}</div>
+      </div>`;
+    }
+  }
+  document.getElementById('centerPanel').innerHTML = html;
+}
+
+function openDetail(signalId) {
+  state.selectedSignalId = signalId;
+  const sig = SIGNALS.find(s => s.signal_id===signalId);
+  if (!sig) return;
+  const c = sig.comprehension;
+  renderSignals(); // update selected state
+
+  let html = `<div class="detail-header">
+    <div class="detail-source">${sourceBadge(sig.source)}</div>
+    <div class="detail-purpose">${escHtml(c.signal_purpose||'')}</div>
+    ${c.context ? `<div class="detail-primary">${escHtml(c.context.primary_label||'')}${c.context.secondary ? ' &nbsp;·&nbsp; '+escHtml(c.context.secondary) : ''}</div>` : ''}
+  </div>`;
+
+  // Summary
+  html += `<div class="detail-prose">
+    <div class="detail-prose-label">Summary</div>
+    <div class="detail-prose-text">${escHtml(c.summary||'')}</div>
+  </div>`;
+
+  // Grid sections
+  const gridFields = FIELDS;
+  html += `<div class="detail-grid">`;
+  for (const field of gridFields) {
+    const items = c[field]||[];
+    html += `<div class="detail-section">
+      <div class="detail-section-head">${field}</div>
+      <div class="detail-items">`;
+    if (items.length===0) {
+      html += `<div class="detail-empty">none extracted</div>`;
+    } else {
+      for (const item of items) {
+        html += `<div class="detail-item">
+          <div class="detail-item-label">${escHtml(item.label||'')}</div>
+          <div class="detail-item-grounding">${escHtml(item.grounding||'')}</div>
+        </div>`;
+      }
+    }
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  // Prose blocks
+  if (c.uncertainty) {
+    html += `<div class="detail-prose">
+      <div class="detail-prose-label">Uncertainty</div>
+      <div class="detail-prose-text">${escHtml(c.uncertainty)}</div>
+    </div>`;
+  }
+  if (c.tacit) {
+    html += `<div class="detail-prose">
+      <div class="detail-prose-label">Tacit knowledge</div>
+      <div class="detail-prose-text">${escHtml(c.tacit)}</div>
+    </div>`;
+  }
+
+  // IDs
+  html += `<div class="detail-id">
+    signal_id: ${escHtml(sig.signal_id)} &nbsp;|&nbsp;
+    ingested: ${formatDate(sig.ingested_at)} &nbsp;|&nbsp;
+    comprehended: ${formatDate(sig.comprehended_at)}
+  </div>`;
+
+  document.getElementById('detailContent').innerHTML = html;
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+document.getElementById('detailClose').onclick = closeDetail;
+document.getElementById('detailOverlay').onclick = function(e) {
+  if (e.target===this) closeDetail();
+};
+document.addEventListener('keydown', function(e) {
+  if (e.key==='Escape') closeDetail();
+});
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  state.selectedSignalId = null;
+  renderSignals();
+}
+
+function render() {
+  renderFilters();
+  renderLeftPanel();
+  renderSignals();
+}
+
+// Init
+renderStats();
+render();
+</script>
+</body>
+</html>

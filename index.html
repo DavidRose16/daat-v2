@@ -114,6 +114,11 @@ select.source-select:focus{border-color:#444}
 .ingest-btn:disabled{opacity:.4;cursor:not-allowed}
 .ingest-btn .spinner{width:10px;height:10px;border:2px solid #88888840;border-top-color:#888;border-radius:50%;animation:spin .7s linear infinite;display:none}
 .ingest-btn.running .spinner{display:block}
+.card-action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.connect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #0e3248;background:#0a1f2e;color:#38bdf8;cursor:pointer;transition:background .12s,border-color .12s}
+.connect-btn:hover{background:#0d2840;border-color:#1a5070}
+.disconnect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#1a0808;color:#f87171;cursor:pointer;transition:background .12s}
+.disconnect-btn:hover{background:#2b0d0d}
 .card-ingest-response{margin-top:8px;padding:8px 10px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;font-size:10px;font-family:ui-monospace,monospace;color:#666;white-space:pre-wrap;word-break:break-all;display:none;max-height:120px;overflow-y:auto}
 .card-ingest-response.visible{display:block}
 .card-ingest-response.ok{border-color:#1a4d2e;color:#4ade80}
@@ -315,10 +320,10 @@ function startCountdown(){
 // ── Section 1 — Connections ──────────────────────────────────────────────────
 
 const SOURCES = [
-  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8', ingestFn:'slack-ingest'      },
-  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa', ingestFn:'notion-ingest'     },
-  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80', ingestFn:'quickbooks-ingest' },
-  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c', ingestFn:'google-ingest'     },
+  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8', ingestFn:'slack-ingest',      oauthFn:'slack-oauth-start'      },
+  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa', ingestFn:'notion-ingest',     oauthFn:'notion-oauth-start'     },
+  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80', ingestFn:'quickbooks-ingest', oauthFn:'quickbooks-oauth-start' },
+  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c', ingestFn:'google-ingest',     oauthFn:'google-oauth-start'     },
 ];
 
 async function loadConnections(signalsBySource){
@@ -369,10 +374,13 @@ async function loadConnections(signalsBySource){
             <span class="card-value prominent">${sigs.length}</span>
           </div>
         </div>
-        <button class="ingest-btn" id="ingest-btn-${s.key}" onclick="runIngest('${s.key}','${s.ingestFn}')">
-          <div class="spinner"></div>
-          <span>Run ${s.ingestFn}</span>
-        </button>
+        <div class="card-action-row">
+          ${connected
+            ? `<button class="ingest-btn" id="ingest-btn-${s.key}" onclick="runIngest('${s.key}','${s.ingestFn}')"><div class="spinner"></div><span>Ingest</span></button>
+               <button class="disconnect-btn" onclick="disconnectSource('${s.key}','${s.table}')">Disconnect</button>`
+            : `<button class="connect-btn" onclick="connectSource('${s.oauthFn}')">Connect</button>`
+          }
+        </div>
         <div class="card-ingest-response" id="ingest-resp-${s.key}"></div>
       </div>`;
     }).join('');
@@ -390,7 +398,7 @@ async function runIngest(sourceKey, fnName){
   resp.className = 'card-ingest-response visible';
   resp.textContent = 'Running…';
   try {
-    const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST' });
+    const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST', headers: BASE_HEADERS });
     const body = await res.text();
     resp.textContent = body;
     resp.className = `card-ingest-response visible ${res.ok ? 'ok' : 'err'}`;
@@ -401,6 +409,28 @@ async function runIngest(sourceKey, fnName){
   } finally {
     btn.disabled = false;
     btn.classList.remove('running');
+  }
+}
+
+function connectSource(oauthFn){
+  window.location.href = `${FN_URL}/${oauthFn}`;
+}
+
+async function disconnectSource(sourceKey, table){
+  if(!confirm(`Disconnect ${sourceKey}?\n\nThis deletes the connection record. You will need to reconnect to ingest data from this source.`)) return;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/${table}?owner_id=eq.default`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      alert(`Disconnect failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    loadAll();
+  } catch(e){
+    alert(`Disconnect failed: ${e.message}`);
   }
 }
 
@@ -479,7 +509,7 @@ async function runComprend(){
   box.className = 'response-box visible';
   box.textContent = 'Running…';
   try {
-    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST' });
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
     const body = await res.text();
     box.textContent = body;
     box.className = `response-box visible ${res.ok ? 'success' : 'error-resp'}`;
@@ -686,7 +716,7 @@ async function runComprehendSource(){
   resp.className = 'controls-response visible';
   resp.textContent = 'Running…';
   try {
-    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST' });
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
     const body = await res.text();
     resp.textContent = body;
     resp.className = `controls-response visible ${res.ok?'ok':'err'}`;

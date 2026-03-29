@@ -199,27 +199,38 @@ async function loadData() {
   try {
     const res = await fetch(
       `${SB_URL}/rest/v1/comprehensions_output` +
-      `?select=signal_id,comprehended_at,model,comprehension,signals_core!inner(source,content_archetype,ingested_at)` +
+      `?select=signal_id,comprehended_at,model,comprehension,signals_core(source,content_archetype,ingested_at)` +
       `&order=comprehended_at.desc`,
       { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } }
     );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errBody}`);
+    }
     const rows = await res.json();
 
-    SIGNALS = rows.map(r => ({
-      signal_id:       r.signal_id,
-      comprehended_at: r.comprehended_at,
-      model:           r.model,
-      comprehension:   r.comprehension,
-      source:          r.signals_core?.source          || '',
-      content_archetype: r.signals_core?.content_archetype || '',
-      ingested_at:     r.signals_core?.ingested_at     || '',
-    }));
+    if (!Array.isArray(rows)) {
+      throw new Error(`Expected array, got: ${JSON.stringify(rows).slice(0, 200)}`);
+    }
+
+    SIGNALS = rows.map(r => {
+      const core = Array.isArray(r.signals_core) ? r.signals_core[0] : r.signals_core;
+      return {
+        signal_id:         r.signal_id,
+        comprehended_at:   r.comprehended_at,
+        model:             r.model,
+        comprehension:     r.comprehension,
+        source:            core?.source            || '',
+        content_archetype: core?.content_archetype || '',
+        ingested_at:       core?.ingested_at       || '',
+      };
+    });
 
     AGGREGATES = computeAggregates(SIGNALS);
     renderStats();
     render();
   } catch (e) {
+    console.error('Explorer loadData error:', e);
     statsBar.innerHTML = `<div style="color:#f87171;font-size:12px;padding:16px 0">Failed to load: ${e.message}</div>`;
   }
 }

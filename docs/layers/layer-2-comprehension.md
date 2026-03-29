@@ -240,6 +240,8 @@ Also include signals that the page may not reflect current practice, especially 
 - it appears incomplete or abandoned
 - it assumes context not defined in the page
 
+Return this field as one prose string only. Do not return an array, list, bullet points, or structured objects for uncertainty.
+
 **tacit**
 
 Capture what the structure and tone of the page imply but do not state directly.
@@ -277,6 +279,7 @@ This may include:
 - Do not include duplicate labels within a field.
 - Keep all labels short, specific, and groupable.
 - Your output must be valid JSON matching the schema exactly. Do not include any text outside the JSON object.
+- For Notion signals, uncertainty must always be returned as a single prose string, never as an array, list, or object.
 
 ---
 

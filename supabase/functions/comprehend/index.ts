@@ -211,6 +211,8 @@ Also include signals that the page may not reflect current practice, especially 
 - it appears incomplete or abandoned
 - it assumes context not defined in the page
 
+Return this field as one prose string only. Do not return an array, list, bullet points, or structured objects for uncertainty.
+
 **tacit**
 
 Capture what the structure and tone of the page imply but do not state directly.
@@ -247,7 +249,8 @@ This may include:
 - If a field is not present, return an empty array [] for list fields and null for scalar fields.
 - Do not include duplicate labels within a field.
 - Keep all labels short, specific, and groupable.
-- Your output must be valid JSON matching the schema exactly. Do not include any text outside the JSON object.`;
+- Your output must be valid JSON matching the schema exactly. Do not include any text outside the JSON object.
+- For Notion signals, uncertainty must always be returned as a single prose string, never as an array, list, or object.`;
 
 const PROMPT_QUICKBOOKS =
   `DAAT reconstructs organizational context from fragmented data across tools like Slack, Notion, QuickBooks, and others. Organizations operate across many systems, but no single system reflects the full, current state of work. DAAT's goal is to make that reality legible without distorting it.
@@ -533,10 +536,13 @@ function validateAndNormalize(parsed: unknown): Record<string, unknown> {
       continue;
     }
     const val = obj[field];
-    if (val !== null && typeof val !== "string") {
-      throw new Error(`${field} is present but is not a string or null`);
+    if (val === null || typeof val === "string") {
+      result[field] = val;
+    } else if (Array.isArray(val)) {
+      result[field] = val.join(" ");
+    } else {
+      throw new Error(`${field} is present but is not a string, array, or null`);
     }
-    result[field] = val;
   }
 
   return result;
@@ -546,7 +552,11 @@ function validateAndNormalize(parsed: unknown): Record<string, unknown> {
 // Main handler
 // ============================================================
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+  const limitParam = url.searchParams.get("limit");
+  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : 10;
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
@@ -573,11 +583,13 @@ Deno.serve(async (_req) => {
     );
   }
 
-  const rows: AssemblyRow[] = await fetchRes.json();
+  const allRows: AssemblyRow[] = await fetchRes.json();
+  const rows = allRows.slice(0, limit);
 
   let succeeded = 0;
   let failed = 0;
   let skipped = 0;
+  const errors: unknown[] = [];
 
   // 2. Process sequentially
   for (const row of rows) {
@@ -587,11 +599,8 @@ Deno.serve(async (_req) => {
     // 2a. Select prompt based on content_archetype
     const sourcePrompt = selectPrompt(content_archetype);
     if (sourcePrompt === null) {
-      console.log(JSON.stringify({
-        reason: "prompt_selection_failed",
-        signal_id,
-        content_archetype,
-      }));
+      const e0 = { reason: "prompt_selection_failed", signal_id, content_archetype };
+      console.log(JSON.stringify(e0)); errors.push(e0);
       skipped++;
       continue;
     }
@@ -616,7 +625,7 @@ Deno.serve(async (_req) => {
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 1500,
+          max_tokens: 4096,
           system: DOCTRINE,
           messages: [{ role: "user", content: userMessage }],
         }),
@@ -624,23 +633,16 @@ Deno.serve(async (_req) => {
 
       if (!anthropicRes.ok) {
         const errText = await anthropicRes.text().catch(() => "");
-        console.log(JSON.stringify({
-          reason: "anthropic_api_failed",
-          signal_id,
-          status: anthropicRes.status,
-          error: errText,
-        }));
+        const e1 = { reason: "anthropic_api_failed", signal_id, status: anthropicRes.status, error: errText };
+        console.log(JSON.stringify(e1)); errors.push(e1);
         failed++;
         continue;
       }
 
       anthropicData = await anthropicRes.json();
     } catch (e) {
-      console.log(JSON.stringify({
-        reason: "anthropic_api_failed",
-        signal_id,
-        error: String(e),
-      }));
+      const e2 = { reason: "anthropic_api_failed", signal_id, error: String(e) };
+      console.log(JSON.stringify(e2)); errors.push(e2);
       failed++;
       continue;
     }
@@ -648,17 +650,16 @@ Deno.serve(async (_req) => {
     const rawText: string =
       (anthropicData?.content as Array<{ text?: string }>)?.[0]?.text ?? "";
 
+    // Strip markdown code fences if Claude wrapped the response
+    const jsonText = rawText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
     // 2d. Parse JSON response
     let parsed: unknown;
     try {
-      parsed = JSON.parse(rawText);
+      parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.log(JSON.stringify({
-        reason: "json_parse_failed",
-        signal_id,
-        error: String(e),
-        raw_text: rawText.slice(0, 500),
-      }));
+      const e3 = { reason: "json_parse_failed", signal_id, error: String(e), raw_text: rawText.slice(0, 500) };
+      console.log(JSON.stringify(e3)); errors.push(e3);
       failed++;
       continue;
     }
@@ -668,11 +669,8 @@ Deno.serve(async (_req) => {
     try {
       comprehension = validateAndNormalize(parsed);
     } catch (e) {
-      console.log(JSON.stringify({
-        reason: "schema_validation_failed",
-        signal_id,
-        error: String(e),
-      }));
+      const e4 = { reason: "schema_validation_failed", signal_id, error: String(e) };
+      console.log(JSON.stringify(e4)); errors.push(e4);
       failed++;
       continue;
     }
@@ -707,11 +705,8 @@ Deno.serve(async (_req) => {
         continue;
       }
 
-      console.log(JSON.stringify({
-        reason: "output_insert_failed",
-        signal_id,
-        error: errBody,
-      }));
+      const e5 = { reason: "output_insert_failed", signal_id, error: errBody };
+      console.log(JSON.stringify(e5)); errors.push(e5);
       failed++;
       continue;
     }
@@ -732,12 +727,8 @@ Deno.serve(async (_req) => {
         errBody = await updateRes.json();
       } catch { /* ignore parse failure */ }
 
-      console.log(JSON.stringify({
-        reason: "assembly_update_failed",
-        signal_id,
-        assembly_id: assemblyId,
-        error: errBody,
-      }));
+      const e6 = { reason: "assembly_update_failed", signal_id, assembly_id: assemblyId, error: errBody };
+      console.log(JSON.stringify(e6)); errors.push(e6);
       failed++;
       continue;
     }
@@ -746,7 +737,7 @@ Deno.serve(async (_req) => {
   }
 
   return new Response(
-    JSON.stringify({ succeeded, failed, skipped }),
+    JSON.stringify({ succeeded, failed, skipped, errors }),
     { headers: { "Content-Type": "application/json" } },
   );
 });

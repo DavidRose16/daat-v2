@@ -120,6 +120,8 @@ select.source-select:focus{border-color:#444}
 .connect-btn:hover{background:#0d2840;border-color:#1a5070}
 .disconnect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#1a0808;color:#f87171;cursor:pointer;transition:background .12s}
 .disconnect-btn:hover{background:#2b0d0d}
+.wipe-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #7a1a1a;background:#2b0505;color:#fca5a5;cursor:pointer;transition:background .12s}
+.wipe-btn:hover{background:#3d0808}
 .card-ingest-response{margin-top:8px;padding:10px 12px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none;max-height:340px;overflow-y:auto}
 .card-ingest-response.visible{display:block}
 .card-ingest-response.err{border-color:#4d1a1a}
@@ -396,7 +398,8 @@ async function loadConnections(signalsBySource){
         <div class="card-action-row">
           ${connected
             ? `<button class="ingest-btn" id="ingest-btn-${s.key}" onclick="runIngest('${s.key}','${s.ingestFn}')"><div class="spinner"></div><span>Ingest</span></button>
-               <button class="disconnect-btn" onclick="disconnectSource('${s.key}','${s.table}')">Disconnect</button>`
+               <button class="disconnect-btn" onclick="disconnectSource('${s.key}','${s.table}')">Disconnect</button>
+               <button class="wipe-btn" onclick="disconnectAndWipe('${s.key}','${s.table}')">Disconnect + Wipe</button>`
             : `<button class="connect-btn" onclick="connectSource('${s.oauthFn}')">Connect</button>`
           }
         </div>
@@ -533,6 +536,35 @@ async function disconnectSource(sourceKey, table){
     loadAll();
   } catch(e){
     alert(`Disconnect failed: ${e.message}`);
+  }
+}
+
+async function disconnectAndWipe(sourceKey, table){
+  if(!confirm(`Disconnect + Wipe ${sourceKey}?\n\nThis will permanently delete:\n  • The connection record\n  • All ${sourceKey} signals in signals_core\n  • All source-specific signal data (cascade)\n  • All comprehensions for those signals (cascade)\n\nThis cannot be undone.`)) return;
+  try {
+    // Delete all signals for this source — cascade deletes source-specific rows and comprehensions
+    const sigRes = await fetch(`${SB_URL}/rest/v1/signals_core?source=eq.${sourceKey}&owner_id=eq.default`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!sigRes.ok){
+      const body = await sigRes.json().catch(()=>({}));
+      alert(`Wipe failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    // Delete connection record
+    const connRes = await fetch(`${SB_URL}/rest/v1/${table}?owner_id=eq.default`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!connRes.ok){
+      const body = await connRes.json().catch(()=>({}));
+      alert(`Connection delete failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    loadAll();
+  } catch(e){
+    alert(`Disconnect + Wipe failed: ${e.message}`);
   }
 }
 

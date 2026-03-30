@@ -120,7 +120,7 @@ select.source-select:focus{border-color:#444}
 .connect-btn:hover{background:#0d2840;border-color:#1a5070}
 .disconnect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#1a0808;color:#f87171;cursor:pointer;transition:background .12s}
 .disconnect-btn:hover{background:#2b0d0d}
-.card-ingest-response{margin-top:8px;padding:10px 12px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none}
+.card-ingest-response{margin-top:8px;padding:10px 12px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none;max-height:340px;overflow-y:auto}
 .card-ingest-response.visible{display:block}
 .card-ingest-response.err{border-color:#4d1a1a}
 
@@ -336,6 +336,15 @@ const SOURCES = [
   { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c', ingestFn:'google-ingest',     oauthFn:'google-oauth-start'     },
 ];
 
+// Persists ingest result HTML across grid re-renders
+const INGEST_RESULTS = {};
+
+function clearIngestResult(sourceKey) {
+  delete INGEST_RESULTS[sourceKey];
+  const el = document.getElementById(`ingest-resp-${sourceKey}`);
+  if (el) { el.className = 'card-ingest-response'; el.innerHTML = ''; }
+}
+
 async function loadConnections(signalsBySource){
   clearErr('err-connections');
   const grid = document.getElementById('connections-grid');
@@ -394,13 +403,21 @@ async function loadConnections(signalsBySource){
         <div class="card-ingest-response" id="ingest-resp-${s.key}"></div>
       </div>`;
     }).join('');
+    // Restore any persisted ingest results after grid rebuild
+    for (const [key, { html, isErr }] of Object.entries(INGEST_RESULTS)) {
+      const el = document.getElementById(`ingest-resp-${key}`);
+      if (el) {
+        el.className = `card-ingest-response visible${isErr ? ' err' : ''}`;
+        el.innerHTML = html;
+      }
+    }
   } catch(e){
     grid.innerHTML = '';
     showErr('err-connections', `Failed to load connections: ${e.message}`);
   }
 }
 
-function renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSignals }) {
+function renderIngestResult({ sourceKey, ingested, deleted, errorCount, elapsed, pendingSignals }) {
   const hasPending = pendingSignals.length > 0;
   const pendingBadge = hasPending
     ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e">Ready to comprehend</span>`
@@ -411,6 +428,10 @@ function renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSig
   const overflow = pendingSignals.length > 24
     ? `<span style="font-size:10px;color:#444"> +${pendingSignals.length - 24} more</span>` : '';
   return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#333">Ingest result</span>
+      <button onclick="clearIngestResult('${sourceKey}')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #2a2a2a;background:#1a1a1a;color:#555;cursor:pointer" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Clear</button>
+    </div>
     <div class="result-stat-row"><span class="result-stat-label">Signals ingested</span><span class="result-stat-value">${ingested}</span></div>
     <div class="result-stat-row"><span class="result-stat-label">Signals deleted (reconciliation)</span><span class="result-stat-value">${deleted}</span></div>
     <div class="result-stat-row"><span class="result-stat-label">Errors</span><span class="result-stat-value" style="${errorCount > 0 ? 'color:#f87171' : ''}">${errorCount}</span></div>
@@ -429,25 +450,44 @@ function renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSig
 
 async function runIngest(sourceKey, fnName){
   const btn = document.getElementById(`ingest-btn-${sourceKey}`);
-  const resp = document.getElementById(`ingest-resp-${sourceKey}`);
   btn.disabled = true;
   btn.classList.add('running');
-  resp.className = 'card-ingest-response visible';
-  resp.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
+
+  // Show panel immediately and start elapsed ticker
+  const showResp = () => document.getElementById(`ingest-resp-${sourceKey}`);
+  const setResp = (html, isErr=false) => {
+    const el = showResp();
+    if (!el) return;
+    el.className = `card-ingest-response visible${isErr ? ' err' : ''}`;
+    el.innerHTML = html;
+  };
+
   const t0 = Date.now();
+  setResp('<span style="font-size:11px;color:#555">Ingesting… (0s elapsed)</span>');
+
+  const ticker = setInterval(() => {
+    const secs = Math.floor((Date.now() - t0) / 1000);
+    setResp(`<span style="font-size:11px;color:#555">Ingesting… (${secs}s elapsed)</span>`);
+  }, 1000);
+
   try {
     const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST', headers: BASE_HEADERS });
+    clearInterval(ticker);
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
     const body = await res.json().catch(() => null);
-    if(!res.ok || !body){
-      resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
-      resp.className = 'card-ingest-response visible err';
+
+    if (!res.ok || !body) {
+      const errMsg = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      INGEST_RESULTS[sourceKey] = { html: errMsg, isErr: true };
+      setResp(errMsg, true);
+      loadAll();
       return;
     }
-    const ingested = body.ingested ?? '—';
-    const deleted = typeof body.deleted === 'number' ? body.deleted : (body.deleted ?? '—');
+
+    const ingested   = body.ingested ?? '—';
+    const deleted    = typeof body.deleted === 'number' ? body.deleted : (body.deleted ?? '—');
     const errorCount = typeof body.errors === 'number' ? body.errors : (Array.isArray(body.errors) ? body.errors.length : 0);
-    // Fetch pending signals for this source post-ingest
+
     let pendingSignals = [];
     try {
       const { data } = await sbGet(
@@ -457,12 +497,17 @@ async function runIngest(sourceKey, fnName){
       );
       pendingSignals = data;
     } catch(e){ /* non-fatal */ }
-    resp.className = 'card-ingest-response visible';
-    resp.innerHTML = renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSignals });
+
+    const html = renderIngestResult({ sourceKey, ingested, deleted, errorCount, elapsed, pendingSignals });
+    INGEST_RESULTS[sourceKey] = { html, isErr: false };
+    // loadAll rebuilds the grid; loadConnections will re-inject from INGEST_RESULTS
     loadAll();
-  } catch(e){
-    resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
-    resp.className = 'card-ingest-response visible err';
+
+  } catch(e) {
+    clearInterval(ticker);
+    const errMsg = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
+    INGEST_RESULTS[sourceKey] = { html: errMsg, isErr: true };
+    setResp(errMsg, true);
   } finally {
     btn.disabled = false;
     btn.classList.remove('running');

@@ -64,10 +64,9 @@ body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-s
 .run-btn .spinner{width:12px;height:12px;border:2px solid #4ade8040;border-top-color:#4ade80;border-radius:50%;animation:spin .7s linear infinite;display:none}
 .run-btn.running .spinner{display:block}
 .run-btn.running .btn-text::after{content:'...'}
-.response-box{margin-top:10px;padding:12px 14px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:7px;font-size:11px;font-family:ui-monospace,monospace;color:#aaa;white-space:pre-wrap;word-break:break-all;display:none;max-height:200px;overflow-y:auto}
+.response-box{margin-top:10px;padding:12px 14px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:7px;display:none}
 .response-box.visible{display:block}
-.response-box.success{border-color:#1a4d2e;color:#4ade80}
-.response-box.error-resp{border-color:#4d1a1a;color:#f87171}
+.response-box.error-resp{border-color:#4d1a1a}
 
 /* ── counts section ── */
 .counts-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
@@ -119,10 +118,17 @@ select.source-select:focus{border-color:#444}
 .connect-btn:hover{background:#0d2840;border-color:#1a5070}
 .disconnect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#1a0808;color:#f87171;cursor:pointer;transition:background .12s}
 .disconnect-btn:hover{background:#2b0d0d}
-.card-ingest-response{margin-top:8px;padding:8px 10px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;font-size:10px;font-family:ui-monospace,monospace;color:#666;white-space:pre-wrap;word-break:break-all;display:none;max-height:120px;overflow-y:auto}
+.card-ingest-response{margin-top:8px;padding:10px 12px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none}
 .card-ingest-response.visible{display:block}
-.card-ingest-response.ok{border-color:#1a4d2e;color:#4ade80}
-.card-ingest-response.err{border-color:#4d1a1a;color:#f87171}
+.card-ingest-response.err{border-color:#4d1a1a}
+
+/* ── result panels ── */
+.result-stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid #141414}
+.result-stat-label{font-size:11px;color:#555}
+.result-stat-value{font-size:12px;font-weight:600;color:#ccc;font-family:ui-monospace,monospace}
+.result-sep{border:none;border-top:1px solid #1e1e1e;margin:8px 0}
+.result-sig-chip{display:inline-block;font-size:9px;font-family:ui-monospace,monospace;color:#555;background:#141414;border:1px solid #1e1e1e;border-radius:3px;padding:1px 5px;margin:2px 2px 0 0}
+.result-error-row{font-size:10px;font-family:ui-monospace,monospace;padding:2px 0;border-bottom:1px solid #141414}
 
 /* ── error box ── */
 .section-error{padding:12px 14px;background:#1a0808;border:1px solid #4d1a1a;border-radius:7px;font-size:12px;color:#f87171;margin-top:4px;display:none}
@@ -391,21 +397,68 @@ async function loadConnections(signalsBySource){
   }
 }
 
+function renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSignals }) {
+  const hasPending = pendingSignals.length > 0;
+  const pendingBadge = hasPending
+    ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e">Ready to comprehend</span>`
+    : `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#1a1a1a;color:#555;border:1px solid #2a2a2a">Nothing pending</span>`;
+  const chips = pendingSignals.slice(0, 24).map(s =>
+    `<span class="result-sig-chip">${esc(s.signal_id.slice(0,8))}…</span>`
+  ).join('');
+  const overflow = pendingSignals.length > 24
+    ? `<span style="font-size:10px;color:#444"> +${pendingSignals.length - 24} more</span>` : '';
+  return `
+    <div class="result-stat-row"><span class="result-stat-label">Signals ingested</span><span class="result-stat-value">${ingested}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Signals deleted (reconciliation)</span><span class="result-stat-value">${deleted}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Errors</span><span class="result-stat-value" style="${errorCount > 0 ? 'color:#f87171' : ''}">${errorCount}</span></div>
+    <div class="result-stat-row" style="border-bottom:none"><span class="result-stat-label">Time taken</span><span class="result-stat-value">${elapsed}s</span></div>
+    <hr class="result-sep">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${hasPending ? '6px' : '0'}">
+      <span class="result-stat-label">Pending in assembly</span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <span class="result-stat-value">${pendingSignals.length}</span>
+        ${pendingBadge}
+      </span>
+    </div>
+    ${hasPending ? `<div style="margin-top:4px">${chips}${overflow}</div>` : ''}
+  `;
+}
+
 async function runIngest(sourceKey, fnName){
   const btn = document.getElementById(`ingest-btn-${sourceKey}`);
   const resp = document.getElementById(`ingest-resp-${sourceKey}`);
   btn.disabled = true;
   btn.classList.add('running');
   resp.className = 'card-ingest-response visible';
-  resp.textContent = 'Running…';
+  resp.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
+  const t0 = Date.now();
   try {
     const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST', headers: BASE_HEADERS });
-    const body = await res.text();
-    resp.textContent = body;
-    resp.className = `card-ingest-response visible ${res.ok ? 'ok' : 'err'}`;
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    const body = await res.json().catch(() => null);
+    if(!res.ok || !body){
+      resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      resp.className = 'card-ingest-response visible err';
+      return;
+    }
+    const ingested = body.ingested ?? '—';
+    const deleted = typeof body.deleted === 'number' ? body.deleted : (body.deleted ?? '—');
+    const errorCount = typeof body.errors === 'number' ? body.errors : (Array.isArray(body.errors) ? body.errors.length : 0);
+    // Fetch pending signals for this source post-ingest
+    let pendingSignals = [];
+    try {
+      const { data } = await sbGet(
+        `/comprehensions_assembly?comprehended_at=is.null` +
+        `&select=signal_id,signals_core!inner(source)` +
+        `&signals_core.source=eq.${sourceKey}`
+      );
+      pendingSignals = data;
+    } catch(e){ /* non-fatal */ }
+    resp.className = 'card-ingest-response visible';
+    resp.innerHTML = renderIngestResult({ ingested, deleted, errorCount, elapsed, pendingSignals });
     loadAll();
   } catch(e){
-    resp.textContent = `Error: ${e.message}`;
+    resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
     resp.className = 'card-ingest-response visible err';
   } finally {
     btn.disabled = false;
@@ -502,21 +555,70 @@ async function loadPipeline(assemblyPending){
   }
 }
 
+function renderComprehendResultHTML(body, recentRows) {
+  const { succeeded=0, failed=0, skipped=0, errors=[] } = body;
+  const errorList = Array.isArray(errors) ? errors : [];
+  const sourceColors = { slack:'#38bdf8', notion:'#a78bfa', quickbooks:'#4ade80', google:'#fb923c' };
+  return `
+    <div class="result-stat-row"><span class="result-stat-label">Succeeded</span><span class="result-stat-value" style="${succeeded>0?'color:#4ade80':''}">${succeeded}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Failed</span><span class="result-stat-value" style="${failed>0?'color:#f87171':''}">${failed}</span></div>
+    <div class="result-stat-row" style="border-bottom:none"><span class="result-stat-label">Skipped</span><span class="result-stat-value">${skipped}</span></div>
+    ${recentRows.length > 0 ? `
+      <hr class="result-sep">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#333;margin-bottom:6px">Just comprehended</div>
+      ${recentRows.map(r => {
+        const src = (Array.isArray(r.signals_core) ? r.signals_core[0] : r.signals_core)?.source || '—';
+        const purpose = r.comprehension?.signal_purpose || '—';
+        const shortId = r.signal_id ? r.signal_id.slice(0,8)+'…' : '—';
+        const color = sourceColors[src] || '#888';
+        return `<div style="display:flex;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px solid #141414">
+          <span style="font-size:10px;color:${color};flex-shrink:0;width:72px">${esc(src)}</span>
+          <span style="font-size:11px;color:#aaa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(purpose)}">${esc(purpose)}</span>
+          <span style="font-size:9px;font-family:ui-monospace,monospace;color:#444;flex-shrink:0">${esc(shortId)}</span>
+        </div>`;
+      }).join('')}
+    ` : ''}
+    ${errorList.length > 0 ? `
+      <hr class="result-sep">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#4d1a1a;margin-bottom:6px">Errors</div>
+      ${errorList.map(e => `<div class="result-error-row">
+        <span style="color:#7a2a2a">${esc(e.reason||'unknown')}</span>
+        ${e.signal_id ? `<span style="color:#444;margin-left:8px;font-size:9px">${esc(e.signal_id.slice(0,8))}…</span>` : ''}
+      </div>`).join('')}
+    ` : ''}
+  `;
+}
+
 async function runComprend(){
   const btn = document.getElementById('run-comprehend-btn');
   const box = document.getElementById('comprehend-response');
   btn.disabled = true;
   btn.classList.add('running');
   box.className = 'response-box visible';
-  box.textContent = 'Running…';
+  box.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
   try {
     const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
-    const body = await res.text();
-    box.textContent = body;
-    box.className = `response-box visible ${res.ok ? 'success' : 'error-resp'}`;
+    const body = await res.json().catch(() => null);
+    if(!res.ok || !body){
+      box.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      box.className = 'response-box visible error-resp';
+      return;
+    }
+    let recentRows = [];
+    if((body.succeeded||0) > 0){
+      try {
+        const { data } = await sbGet(
+          `/comprehensions_output?order=comprehended_at.desc&limit=${body.succeeded}` +
+          `&select=signal_id,comprehension,signals_core!inner(source)`
+        );
+        recentRows = data;
+      } catch(e){ /* non-fatal */ }
+    }
+    box.className = 'response-box visible';
+    box.innerHTML = renderComprehendResultHTML(body, recentRows);
     loadAll();
   } catch(e){
-    box.textContent = `Error: ${e.message}`;
+    box.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
     box.className = 'response-box visible error-resp';
   } finally {
     btn.disabled = false;
@@ -715,15 +817,30 @@ async function runComprehendSource(){
   const resp = document.getElementById('run-source-response');
   btn.disabled = true;
   resp.className = 'controls-response visible';
-  resp.textContent = 'Running…';
+  resp.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
   try {
     const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
-    const body = await res.text();
-    resp.textContent = body;
-    resp.className = `controls-response visible ${res.ok?'ok':'err'}`;
+    const body = await res.json().catch(() => null);
+    if(!res.ok || !body){
+      resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      resp.className = 'controls-response visible err';
+      return;
+    }
+    let recentRows = [];
+    if((body.succeeded||0) > 0){
+      try {
+        const { data } = await sbGet(
+          `/comprehensions_output?order=comprehended_at.desc&limit=${body.succeeded}` +
+          `&select=signal_id,comprehension,signals_core!inner(source)`
+        );
+        recentRows = data;
+      } catch(e){ /* non-fatal */ }
+    }
+    resp.className = 'controls-response visible';
+    resp.innerHTML = renderComprehendResultHTML(body, recentRows);
     loadAll();
   } catch(e){
-    resp.textContent = `Error: ${e.message}`;
+    resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
     resp.className = 'controls-response visible err';
   } finally {
     btn.disabled = false;

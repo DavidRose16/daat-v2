@@ -111,8 +111,11 @@
 </head>
 <body>
 <div class="app">
-  <div style="padding:8px 16px;border-bottom:1px solid #1e1e1e;background:#0f0f0f">
-    <a href="/" style="font-size:12px;font-weight:500;color:#555;text-decoration:none" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">← Admin</a>
+  <div style="display:flex;background:#0a0a0a;border-bottom:1px solid #1e1e1e;padding:0 16px;flex-shrink:0">
+    <span style="font-size:12px;font-weight:600;color:#555;letter-spacing:.06em;padding:12px 16px 12px 0;border-right:1px solid #1e1e1e;margin-right:0">DAAT v2</span>
+    <a href="/" style="font-size:12px;font-weight:500;padding:12px 16px;color:#555;text-decoration:none;border-bottom:2px solid transparent;transition:color .12s" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Admin</a>
+    <a href="/daat-ingest" style="font-size:12px;font-weight:500;padding:12px 16px;color:#555;text-decoration:none;border-bottom:2px solid transparent;transition:color .12s" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Ingest</a>
+    <a href="/daat-explorer" style="font-size:12px;font-weight:500;padding:12px 16px;color:#e2e2e2;text-decoration:none;border-bottom:2px solid #555">Explorer</a>
   </div>
   <!-- Stats Bar -->
   <div class="stats-bar" id="statsBar"></div>

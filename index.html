@@ -9,10 +9,12 @@
 body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding-bottom:80px}
 
 /* ── header ── */
-.admin-header{background:#0f0f0f;border-bottom:1px solid #1e1e1e;padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-.header-left{display:flex;align-items:center;gap:12px}
-.header-brand{font-size:13px;font-weight:600;color:#fff;letter-spacing:.04em}
-.header-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#2b1400;color:#f97316;border:1px solid #4d2800;letter-spacing:.04em}
+.admin-header{background:#0a0a0a;border-bottom:1px solid #1e1e1e;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.header-left{display:flex;align-items:center;gap:0}
+.header-brand{font-size:12px;font-weight:600;color:#555;letter-spacing:.06em;padding:10px 16px 10px 0;border-right:1px solid #1e1e1e;margin-right:0}
+.tab{font-size:12px;font-weight:500;padding:12px 16px;color:#555;text-decoration:none;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;white-space:nowrap;display:inline-block}
+.tab:hover{color:#aaa}
+.tab.active{color:#e5e5e5;border-bottom-color:#555}
 .header-right{display:flex;align-items:center;gap:16px}
 .refresh-countdown{font-size:11px;color:#444}
 .refresh-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;transition:color .12s,border-color .12s}
@@ -148,13 +150,14 @@ select.source-select:focus{border-color:#444}
 <div class="admin-header">
   <div class="header-left">
     <span class="header-brand">DAAT v2</span>
-    <span class="header-badge">ADMIN</span>
+    <a href="/" class="tab active">Admin</a>
+    <a href="/daat-ingest" class="tab">Ingest</a>
+    <a href="/daat-explorer" class="tab">Explorer</a>
   </div>
   <div class="header-right">
     <span class="last-refreshed" id="last-refreshed"></span>
     <span class="refresh-countdown" id="refresh-countdown"></span>
-    <a href="/daat-explorer" style="font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;text-decoration:none;transition:color .12s,border-color .12s" onmouseover="this.style.color='#fff';this.style.borderColor='#444'" onmouseout="this.style.color='#888';this.style.borderColor='#2a2a2a'">Explorer →</a>
-    <button class="refresh-btn" onclick="loadAll()">Refresh now</button>
+    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
   </div>
 </div>
 

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAAT Ingest</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --card: #111111;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+    --text: #e2e2e2;
+    --text-dim: #888;
+    --text-dimmer: #555;
+    --slack: #38bdf8;
+    --notion: #a78bfa;
+    --quickbooks: #4ade80;
+    --google: #fb923c;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; overflow: hidden; }
+
+  /* ── tabs ── */
+  .tab-bar { flex-shrink: 0; display: flex; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 16px; }
+  .tab { font-size: 12px; font-weight: 500; padding: 10px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; }
+  .tab:hover { color: var(--text-dim); }
+  .tab.active { color: var(--text); border-bottom-color: #555; }
+
+  /* ── layout ── */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .stats-bar { flex-shrink: 0; background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .filter-bar { flex-shrink: 0; background: #0d0d0d; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .main-area { flex: 1; display: flex; overflow: hidden; }
+  .left-panel { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; background: var(--card); }
+  .center-panel { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* ── stats bar ── */
+  .stat-item { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+  .stat-divider { width: 1px; background: var(--border2); height: 36px; }
+  .source-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+  .source-pill.slack    { color: var(--slack);      background: rgba(56,189,248,0.08);  border: 1px solid rgba(56,189,248,0.18); }
+  .source-pill.notion   { color: var(--notion);     background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.18); }
+  .source-pill.quickbooks { color: var(--quickbooks); background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.18); }
+  .source-pill.google   { color: var(--google);     background: rgba(251,146,60,0.08);  border: 1px solid rgba(251,146,60,0.18); }
+
+  /* ── filter bar ── */
+  .filter-bar label { font-size: 11px; color: var(--text-dim); margin-right: 4px; }
+  .filter-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: #1a1a1a; color: var(--text-dim); cursor: pointer; transition: all 0.1s; }
+  .filter-btn:hover { border-color: #444; color: var(--text); }
+  .filter-btn.active.all      { border-color: #555; color: var(--text); background: #222; }
+  .filter-btn.active.slack    { border-color: var(--slack); color: var(--slack); background: rgba(56,189,248,0.1); }
+  .filter-btn.active.notion   { border-color: var(--notion); color: var(--notion); background: rgba(167,139,250,0.1); }
+  .filter-btn.active.quickbooks { border-color: var(--quickbooks); color: var(--quickbooks); background: rgba(74,222,128,0.1); }
+  .filter-btn.active.google   { border-color: var(--google); color: var(--google); background: rgba(251,146,60,0.1); }
+  .filter-btn.active.ingested { border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.1); }
+  .filter-btn.active.enriched { border-color: #4ade80; color: #4ade80; background: rgba(74,222,128,0.1); }
+  .filter-btn.active.pending  { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.1); }
+  .filter-btn.active.comprehended { border-color: #4ade80; color: #4ade80; background: rgba(74,222,128,0.1); }
+  .filter-sep { width: 1px; height: 20px; background: var(--border2); }
+  .search-input { flex: 1; min-width: 140px; max-width: 280px; background: #1a1a1a; border: 1px solid var(--border2); border-radius: 4px; color: var(--text); padding: 4px 10px; font-size: 12px; outline: none; }
+  .search-input:focus { border-color: #444; }
+  .search-input::placeholder { color: var(--text-dimmer); }
+  .clear-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #3a2020; background: #1a1010; color: #f87171; cursor: pointer; }
+  .result-count { font-size: 11px; color: var(--text-dimmer); margin-left: auto; font-family: var(--mono); }
+
+  /* ── live button ── */
+  .live-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: #1a1a1a; color: var(--text-dimmer); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .live-btn.on { border-color: #f87171; color: #f87171; background: rgba(248,113,113,0.08); }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .live-btn.on .live-dot { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .new-badge { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+
+  /* ── left panel ── */
+  .lp-section { border-bottom: 1px solid var(--border); }
+  .lp-section-head { padding: 10px 12px 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); font-weight: 600; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  .lp-section-head:hover { color: var(--text-dim); }
+  .lp-section-body { padding-bottom: 4px; }
+  .lp-item { display: flex; align-items: center; gap: 6px; padding: 4px 12px; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
+  .lp-item:hover { background: #181818; }
+  .lp-item.active { background: #1a1a1a; border-left-color: #555; }
+  .lp-item-label { flex: 1; font-size: 11px; color: var(--text-dim); }
+  .lp-item.active .lp-item-label { color: var(--text); }
+  .lp-item-count { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); }
+  .lp-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .lp-collapsed .lp-section-body { display: none; }
+  .lp-chevron { font-size: 9px; color: var(--text-dimmer); }
+
+  /* ── signal cards ── */
+  .signal-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; transition: border-color 0.3s; }
+  .signal-card.is-new { border-color: rgba(248,113,113,0.4); animation: newglow 3s ease-out forwards; }
+  @keyframes newglow { 0% { border-color: rgba(248,113,113,0.7); } 100% { border-color: var(--border); } }
+
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .card-primary-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .card-secondary-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); margin-bottom: 10px; }
+
+  /* status badges */
+  .status-pill { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.03em; }
+  .status-ingested    { color: #38bdf8; background: rgba(56,189,248,0.08);  border: 1px solid rgba(56,189,248,0.2); }
+  .status-enriched    { color: #4ade80; background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.2); }
+  .status-pending     { color: #fbbf24; background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.2); }
+  .status-comprehended{ color: #4ade80; background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.2); }
+  .status-none        { color: var(--text-dimmer); background: #1a1a1a; border: 1px solid var(--border2); }
+
+  /* card sections */
+  .card-section { margin-bottom: 10px; }
+  .card-section-head { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dimmer); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .card-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+  .card-fields.wide { grid-template-columns: 1fr; }
+  .card-field { display: flex; gap: 6px; align-items: baseline; }
+  .cf-label { font-size: 10px; color: var(--text-dimmer); flex-shrink: 0; min-width: 110px; }
+  .cf-value { font-size: 11px; color: var(--text-dim); font-family: var(--mono); word-break: break-all; }
+  .cf-value.prominent { color: var(--text); font-weight: 600; }
+  .cf-value.bool-true  { color: #4ade80; }
+  .cf-value.bool-false { color: var(--text-dimmer); }
+  .cf-value.money { color: #4ade80; }
+  .cf-value.dim { color: var(--text-dimmer); }
+
+  /* raw content toggle */
+  .raw-toggle { margin-top: 10px; font-size: 10px; color: var(--text-dimmer); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; user-select: none; padding: 3px 0; }
+  .raw-toggle:hover { color: var(--text-dim); }
+  .raw-content-box { margin-top: 6px; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; display: none; }
+  .raw-content-box.open { display: block; }
+
+  .no-results { color: var(--text-dimmer); font-size: 12px; text-align: center; padding: 40px 20px; }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <a href="/" class="tab">Admin</a>
+    <a href="/daat-ingest" class="tab active">Ingest</a>
+    <a href="/daat-explorer" class="tab">Explorer</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div style="color:var(--text-dimmer);font-size:12px">Loading…</div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar" id="filterBar"></div>
+
+  <!-- Main -->
+  <div class="main-area">
+    <div class="left-panel" id="leftPanel"></div>
+    <div class="center-panel" id="centerPanel"></div>
+  </div>
+
+</div>
+
+<script>
+const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
+
+let SIGNALS = [];
+let liveMode = false;
+let liveTimer = null;
+let latestIngestedAt = null;
+let newIds = new Set();
+let newCount = 0;
+
+const state = {
+  sourceFilter: null,
+  statusFilter: null,
+  assemblyFilter: null,
+  search: '',
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' ' +
+    d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+function rel(ts) {
+  if (!ts) return '—';
+  const diff = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(diff/1000);
+  if (s < 5)  return 'just now';
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function fmtBool(v) {
+  if (v === true)  return `<span class="cf-value bool-true">true</span>`;
+  if (v === false) return `<span class="cf-value bool-false">false</span>`;
+  return `<span class="cf-value dim">—</span>`;
+}
+
+function fmtVal(v, opts={}) {
+  if (v == null || v === '') return `<span class="cf-value dim">—</span>`;
+  if (opts.money) return `<span class="cf-value money">${esc(v)}</span>`;
+  if (opts.prominent) return `<span class="cf-value prominent">${esc(String(v))}</span>`;
+  return `<span class="cf-value">${esc(String(v))}</span>`;
+}
+
+function field(label, valueHtml) {
+  return `<div class="card-field"><span class="cf-label">${esc(label)}</span>${valueHtml}</div>`;
+}
+
+// ── data fetch ────────────────────────────────────────────────────────────────
+
+async function fetchSignals() {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/signals_core` +
+    `?select=id,source,content_archetype,source_record_id,processing_status,ingested_at,enriched_at,raw_content,` +
+    `signals_slack(*),signals_notion(*),signals_quickbooks(*),signals_google(*),` +
+    `comprehensions_assembly(id,assembled_at,comprehended_at)` +
+    `&order=ingested_at.desc`,
+    { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } }
+  );
+  if (!res.ok) {
+    const err = await res.text().catch(()=>'');
+    throw new Error(`HTTP ${res.status}: ${err}`);
+  }
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function one(arr) {
+  if (!arr) return null;
+  if (Array.isArray(arr)) return arr[0] ?? null;
+  return arr;
+}
+
+function normalizeRow(r) {
+  const slack  = one(r.signals_slack);
+  const notion = one(r.signals_notion);
+  const qb     = one(r.signals_quickbooks);
+  const google = one(r.signals_google);
+  const asm    = one(r.comprehensions_assembly);
+
+  // derive assembly status
+  let asmStatus = 'none';
+  if (asm) asmStatus = asm.comprehended_at ? 'comprehended' : 'pending';
+
+  // derive primary label
+  let primaryLabel = r.source_record_id || r.id;
+  if (slack)  primaryLabel = slack.channel_name ? `#${slack.channel_name}` : primaryLabel;
+  if (notion) {
+    const title = r.raw_content?.title || notion.database_title;
+    if (title) primaryLabel = title;
+  }
+  if (qb)     primaryLabel = qb.vendor_name || qb.transaction_type || primaryLabel;
+  if (google) primaryLabel = google.app_name || primaryLabel;
+
+  // secondary
+  let secondary = null;
+  if (slack)  secondary = [slack.sender_name, slack.message_count != null ? `${slack.message_count} msgs` : null].filter(Boolean).join(' · ');
+  if (notion) secondary = [notion.page_type, notion.teamspace_name].filter(Boolean).join(' · ');
+  if (qb)     secondary = [qb.transaction_type, qb.amount != null ? `${qb.currency||''}${qb.amount}` : null, qb.transaction_date ? fmt(qb.transaction_date).split(' ')[0]+' '+fmt(qb.transaction_date).split(' ')[1]+' '+fmt(qb.transaction_date).split(' ')[2] : null].filter(Boolean).join(' · ');
+  if (google) secondary = [google.app_category, google.publisher_name].filter(Boolean).join(' · ');
+
+  return { ...r, _slack: slack, _notion: notion, _qb: qb, _google: google, _asm: asm, _asmStatus: asmStatus, _primaryLabel: primaryLabel, _secondary: secondary };
+}
+
+async function loadData() {
+  document.getElementById('statsBar').innerHTML = '<div style="color:var(--text-dimmer);font-size:12px">Loading…</div>';
+  try {
+    const rows = await fetchSignals();
+    const normalized = rows.map(normalizeRow);
+
+    // detect new signals in live mode
+    if (liveMode && latestIngestedAt && normalized.length > 0) {
+      const prevLatest = new Date(latestIngestedAt).getTime();
+      for (const sig of normalized) {
+        if (sig.ingested_at && new Date(sig.ingested_at).getTime() > prevLatest) {
+          newIds.add(sig.id);
+          newCount++;
+        }
+      }
+    }
+
+    SIGNALS = normalized;
+    if (SIGNALS.length > 0) {
+      latestIngestedAt = SIGNALS[0].ingested_at;
+    }
+
+    renderStats();
+    render();
+  } catch(e) {
+    console.error('Ingest loadData error:', e);
+    document.getElementById('statsBar').innerHTML = `<div style="color:#f87171;font-size:12px">Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── stats ─────────────────────────────────────────────────────────────────────
+
+function renderStats() {
+  const total = SIGNALS.length;
+  const bySrc = {};
+  const byStatus = {};
+  const byAsm = {};
+  for (const s of SIGNALS) {
+    bySrc[s.source] = (bySrc[s.source]||0)+1;
+    byStatus[s.processing_status] = (byStatus[s.processing_status]||0)+1;
+    byAsm[s._asmStatus] = (byAsm[s._asmStatus]||0)+1;
+  }
+
+  const srcHTML = ['slack','notion','quickbooks','google']
+    .filter(k => bySrc[k])
+    .map(k => `<span class="source-pill ${k}">${k} ${bySrc[k]}</span>`)
+    .join('');
+
+  const liveHTML = liveMode
+    ? `<span class="new-badge">${newCount} new</span>`
+    : '';
+
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-label">Signals</div>
+      <div class="stat-value">${total}</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">By source</div>
+      <div style="display:flex;gap:5px;align-items:center;margin-top:2px">${srcHTML}</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Processing</div>
+      <div style="display:flex;gap:6px;margin-top:2px;align-items:center">
+        ${Object.entries(byStatus).map(([k,v])=>`<span style="font-size:11px;color:var(--text-dim)">${k} <span style="color:var(--text);font-weight:600">${v}</span></span>`).join('')}
+      </div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Assembly</div>
+      <div style="display:flex;gap:6px;margin-top:2px;align-items:center">
+        ${byAsm.pending ? `<span style="font-size:11px;color:#fbbf24">pending <span style="font-weight:600">${byAsm.pending}</span></span>` : ''}
+        ${byAsm.comprehended ? `<span style="font-size:11px;color:#4ade80">comprehended <span style="font-weight:600">${byAsm.comprehended}</span></span>` : ''}
+        ${byAsm.none ? `<span style="font-size:11px;color:var(--text-dimmer)">not assembled <span style="font-weight:600">${byAsm.none}</span></span>` : ''}
+      </div>
+    </div>
+    ${liveHTML ? `<div class="stat-divider"></div><div>${liveHTML}</div>` : ''}
+  `;
+}
+
+// ── filters ───────────────────────────────────────────────────────────────────
+
+function getFiltered() {
+  return SIGNALS.filter(s => {
+    if (state.sourceFilter && s.source !== state.sourceFilter) return false;
+    if (state.statusFilter && s.processing_status !== state.statusFilter) return false;
+    if (state.assemblyFilter && s._asmStatus !== state.assemblyFilter) return false;
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      const hay = [s._primaryLabel, s._secondary, s.source_record_id, s.id,
+        s._slack?.channel_name, s._slack?.sender_name,
+        s._notion?.teamspace_name,
+        s._qb?.vendor_name, s._qb?.memo, s._qb?.category,
+        s._google?.app_name, s._google?.publisher_name,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderFilters() {
+  const anyActive = state.sourceFilter || state.statusFilter || state.assemblyFilter || state.search;
+  const filtered = getFiltered();
+  document.getElementById('filterBar').innerHTML = `
+    <label>Source</label>
+    <button class="filter-btn all ${!state.sourceFilter?'active':''}" onclick="setF('sourceFilter',null)">All</button>
+    ${['slack','notion','quickbooks','google'].map(s=>`
+      <button class="filter-btn ${s} ${state.sourceFilter===s?'active':''}" onclick="setF('sourceFilter','${s}')">${s}</button>
+    `).join('')}
+    <div class="filter-sep"></div>
+    <label>Status</label>
+    <button class="filter-btn ingested ${state.statusFilter==='ingested'?'active':''}" onclick="toggleF('statusFilter','ingested')">ingested</button>
+    <button class="filter-btn enriched ${state.statusFilter==='enriched'?'active':''}" onclick="toggleF('statusFilter','enriched')">enriched</button>
+    <div class="filter-sep"></div>
+    <label>Assembly</label>
+    <button class="filter-btn pending ${state.assemblyFilter==='pending'?'active':''}" onclick="toggleF('assemblyFilter','pending')">pending</button>
+    <button class="filter-btn comprehended ${state.assemblyFilter==='comprehended'?'active':''}" onclick="toggleF('assemblyFilter','comprehended')">comprehended</button>
+    <div class="filter-sep"></div>
+    <input class="search-input" type="text" placeholder="Search signals…" id="searchInput" value="${esc(state.search)}" oninput="setSearch(this.value)">
+    ${anyActive ? `<button class="clear-btn" onclick="clearAll()">Clear</button>` : ''}
+    <button class="live-btn ${liveMode?'on':''}" onclick="toggleLive()">
+      <span class="live-dot"></span>${liveMode ? 'Live on' : 'Live off'}
+    </button>
+    <span class="result-count">${filtered.length} / ${SIGNALS.length}</span>
+  `;
+}
+
+function setF(key, val) { state[key] = val; render(); }
+function toggleF(key, val) { state[key] = state[key]===val ? null : val; render(); }
+function setSearch(q) { state.search = q; renderCards(); renderFilters(); }
+function clearAll() { state.sourceFilter=null; state.statusFilter=null; state.assemblyFilter=null; state.search=''; render(); }
+
+function toggleLive() {
+  liveMode = !liveMode;
+  if (liveMode) {
+    newCount = 0;
+    liveTimer = setInterval(loadData, 4000);
+  } else {
+    clearInterval(liveTimer);
+    liveTimer = null;
+    newIds.clear();
+    newCount = 0;
+  }
+  render();
+}
+
+// ── left panel ────────────────────────────────────────────────────────────────
+
+function renderLeftPanel() {
+  const bySrc = {}; const byStatus = {}; const byAsm = {};
+  for (const s of SIGNALS) {
+    bySrc[s.source] = (bySrc[s.source]||0)+1;
+    byStatus[s.processing_status] = (byStatus[s.processing_status]||0)+1;
+    byAsm[s._asmStatus] = (byAsm[s._asmStatus]||0)+1;
+  }
+
+  const srcColors = {slack:'var(--slack)',notion:'var(--notion)',quickbooks:'var(--quickbooks)',google:'var(--google)'};
+  const asmColors = {pending:'#fbbf24',comprehended:'#4ade80',none:'#555'};
+
+  let html = `
+    <div class="lp-section">
+      <div class="lp-section-head">Source</div>
+      <div class="lp-section-body">
+        ${Object.entries(bySrc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+          <div class="lp-item ${state.sourceFilter===k?'active':''}" onclick="setF('sourceFilter',${state.sourceFilter===k?'null':`'${k}'`})">
+            <span class="lp-dot" style="background:${srcColors[k]||'#555'}"></span>
+            <span class="lp-item-label">${esc(k)}</span>
+            <span class="lp-item-count">${v}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="lp-section">
+      <div class="lp-section-head">Processing Status</div>
+      <div class="lp-section-body">
+        ${Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+          <div class="lp-item ${state.statusFilter===k?'active':''}" onclick="toggleF('statusFilter','${k}')">
+            <span class="lp-dot" style="background:${k==='enriched'?'#4ade80':'#38bdf8'}"></span>
+            <span class="lp-item-label">${esc(k)}</span>
+            <span class="lp-item-count">${v}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="lp-section">
+      <div class="lp-section-head">Assembly</div>
+      <div class="lp-section-body">
+        ${Object.entries(byAsm).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+          <div class="lp-item ${state.assemblyFilter===k?'active':''}" onclick="toggleF('assemblyFilter','${k}')">
+            <span class="lp-dot" style="background:${asmColors[k]||'#555'}"></span>
+            <span class="lp-item-label">${esc(k)}</span>
+            <span class="lp-item-count">${v}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('leftPanel').innerHTML = html;
+}
+
+// ── cards ─────────────────────────────────────────────────────────────────────
+
+function renderSourceFields(s) {
+  if (s._slack) {
+    const sl = s._slack;
+    return `<div class="card-section">
+      <div class="card-section-head">signals_slack</div>
+      <div class="card-fields">
+        ${field('channel', fmtVal(sl.channel_name ? `#${sl.channel_name}` : null, {prominent:true}))}
+        ${field('channel_type', fmtVal(sl.channel_type))}
+        ${field('thread_ts', fmtVal(sl.thread_ts))}
+        ${field('is_thread', fmtBool(sl.is_thread))}
+        ${field('message_count', fmtVal(sl.message_count))}
+        ${field('participant_count', fmtVal(sl.participant_count))}
+        ${field('sender_name', fmtVal(sl.sender_name, {prominent:true}))}
+        ${field('sender_id', fmtVal(sl.sender_id))}
+        ${field('sent_at', fmtVal(sl.sent_at ? fmt(sl.sent_at) : null))}
+        ${field('last_reply_at', fmtVal(sl.last_reply_at ? fmt(sl.last_reply_at) : null))}
+        ${field('has_reactions', fmtBool(sl.has_reactions))}
+        ${field('reaction_count', fmtVal(sl.reaction_count))}
+        ${field('mention_count', fmtVal(sl.mention_count))}
+      </div>
+    </div>`;
+  }
+  if (s._notion) {
+    const n = s._notion;
+    const crumb = Array.isArray(n.breadcrumb) ? n.breadcrumb.join(' › ') : null;
+    return `<div class="card-section">
+      <div class="card-section-head">signals_notion</div>
+      <div class="card-fields">
+        ${field('page_type', fmtVal(n.page_type, {prominent:true}))}
+        ${field('teamspace', fmtVal(n.teamspace_name))}
+        ${field('breadcrumb', fmtVal(crumb))}
+        ${field('depth_level', fmtVal(n.depth_level))}
+        ${field('block_count', fmtVal(n.block_count))}
+        ${field('child_count', fmtVal(n.child_count))}
+        ${field('comment_count', fmtVal(n.comment_count))}
+        ${field('last_edited_by', fmtVal(n.last_edited_by))}
+        ${field('created_by', fmtVal(n.created_by))}
+        ${field('created_at_source', fmtVal(n.created_at_source ? fmt(n.created_at_source) : null))}
+        ${field('last_edited_at_source', fmtVal(n.last_edited_at_source ? fmt(n.last_edited_at_source) : null))}
+        ${field('is_database_entry', fmtBool(n.is_database_entry))}
+        ${field('database_title', fmtVal(n.database_title))}
+        ${field('is_publicly_shared', fmtBool(n.is_publicly_shared))}
+        ${field('is_restricted', fmtBool(n.is_restricted))}
+        ${field('is_template', fmtBool(n.is_template))}
+        ${field('has_attachments', fmtBool(n.has_attachments))}
+        ${field('internal_link_count', fmtVal(n.internal_link_count))}
+        ${field('backlink_count', fmtVal(n.backlink_count))}
+      </div>
+    </div>`;
+  }
+  if (s._qb) {
+    const q = s._qb;
+    return `<div class="card-section">
+      <div class="card-section-head">signals_quickbooks</div>
+      <div class="card-fields">
+        ${field('vendor_name', fmtVal(q.vendor_name, {prominent:true}))}
+        ${field('vendor_id', fmtVal(q.vendor_id))}
+        ${field('transaction_type', fmtVal(q.transaction_type))}
+        ${field('amount', q.amount != null ? `<span class="cf-value money">${esc(q.currency||'')}${esc(String(q.amount))}</span>` : `<span class="cf-value dim">—</span>`)}
+        ${field('transaction_date', fmtVal(q.transaction_date ? fmt(q.transaction_date) : null))}
+        ${field('category', fmtVal(q.category))}
+        ${field('account_name', fmtVal(q.account_name))}
+        ${field('payment_method', fmtVal(q.payment_method))}
+        ${field('memo', fmtVal(q.memo))}
+        ${field('is_recurring', fmtBool(q.is_recurring))}
+        ${field('recurrence_frequency', fmtVal(q.recurrence_frequency))}
+        ${field('recurrence_interval', fmtVal(q.recurrence_interval))}
+        ${field('tax_amount', fmtVal(q.tax_amount))}
+        ${field('is_billable', fmtBool(q.is_billable))}
+        ${field('class_name', fmtVal(q.class_name))}
+      </div>
+    </div>`;
+  }
+  if (s._google) {
+    const g = s._google;
+    const scopes = Array.isArray(g.scopes) ? g.scopes.join(', ') : null;
+    return `<div class="card-section">
+      <div class="card-section-head">signals_google</div>
+      <div class="card-fields">
+        ${field('app_name', fmtVal(g.app_name, {prominent:true}))}
+        ${field('app_id', fmtVal(g.app_id))}
+        ${field('app_category', fmtVal(g.app_category))}
+        ${field('publisher_name', fmtVal(g.publisher_name))}
+        ${field('connected_by', fmtVal(g.connected_by))}
+        ${field('connected_at_source', fmtVal(g.connected_at_source ? fmt(g.connected_at_source) : null))}
+        ${field('user_count', fmtVal(g.user_count))}
+        ${field('is_admin_app', fmtBool(g.is_admin_app))}
+        ${field('is_verified', fmtBool(g.is_verified))}
+        ${field('domain_wide', fmtBool(g.domain_wide))}
+        ${field('approval_status', fmtVal(g.approval_status))}
+        ${field('risk_level', fmtVal(g.risk_level))}
+        ${field('last_used_at', fmtVal(g.last_used_at ? fmt(g.last_used_at) : null))}
+      </div>
+      ${scopes ? `<div style="margin-top:6px">${field('scopes', `<span class="cf-value" style="word-break:break-word;white-space:normal">${esc(scopes)}</span>`)}</div>` : ''}
+    </div>`;
+  }
+  return '';
+}
+
+function renderCard(s) {
+  const asm = s._asm;
+  const asmBadgeClass = { pending:'status-pending', comprehended:'status-comprehended', none:'status-none' }[s._asmStatus] || 'status-none';
+  const asmBadgeText  = { pending:'pending', comprehended:'comprehended', none:'not assembled' }[s._asmStatus];
+
+  const rawId = `raw-${s.id}`;
+  const isNew = newIds.has(s.id);
+
+  return `<div class="signal-card ${isNew?'is-new':''}">
+
+    <div class="card-header">
+      <span class="source-pill ${s.source}">${esc(s.source)}</span>
+      <span class="status-pill status-${s.processing_status}">${esc(s.processing_status)}</span>
+      <span class="status-pill ${asmBadgeClass}">${asmBadgeText}</span>
+      ${isNew ? `<span class="new-badge">new</span>` : ''}
+    </div>
+
+    <div class="card-primary-label">${esc(s._primaryLabel)}</div>
+    ${s._secondary ? `<div class="card-secondary-label">${esc(s._secondary)}</div>` : ''}
+
+    <div class="card-section">
+      <div class="card-section-head">signals_core</div>
+      <div class="card-fields">
+        ${field('id', `<span class="cf-value" style="font-size:9px">${esc(s.id)}</span>`)}
+        ${field('source_record_id', fmtVal(s.source_record_id))}
+        ${field('content_archetype', fmtVal(s.content_archetype))}
+        ${field('processing_status', fmtVal(s.processing_status))}
+        ${field('ingested_at', `<span class="cf-value">${esc(rel(s.ingested_at))} <span style="color:var(--text-dimmer)">${esc(fmt(s.ingested_at))}</span></span>`)}
+        ${field('enriched_at', s.enriched_at ? `<span class="cf-value">${esc(rel(s.enriched_at))} <span style="color:var(--text-dimmer)">${esc(fmt(s.enriched_at))}</span></span>` : `<span class="cf-value dim">—</span>`)}
+      </div>
+    </div>
+
+    ${renderSourceFields(s)}
+
+    <div class="card-section">
+      <div class="card-section-head">comprehensions_assembly</div>
+      <div class="card-fields">
+        ${asm ? `
+          ${field('id', `<span class="cf-value" style="font-size:9px">${esc(asm.id)}</span>`)}
+          ${field('assembled_at', `<span class="cf-value">${esc(rel(asm.assembled_at))} <span style="color:var(--text-dimmer)">${esc(fmt(asm.assembled_at))}</span></span>`)}
+          ${field('comprehended_at', asm.comprehended_at
+            ? `<span class="cf-value">${esc(rel(asm.comprehended_at))} <span style="color:var(--text-dimmer)">${esc(fmt(asm.comprehended_at))}</span></span>`
+            : `<span class="cf-value dim">—</span>`)}
+        ` : field('status', `<span class="cf-value dim">no assembly row</span>`)}
+      </div>
+    </div>
+
+    <div class="raw-toggle" onclick="toggleRaw('${rawId}',this)">▸ raw_content</div>
+    <div class="raw-content-box" id="${rawId}">${esc(JSON.stringify(s.raw_content, null, 2))}</div>
+
+  </div>`;
+}
+
+function renderCards() {
+  const filtered = getFiltered();
+  const rc = document.getElementById('resultCount');
+  // result count is in filter bar, re-render that too
+  if (!rc) renderFilters();
+  else rc.textContent = `${filtered.length} / ${SIGNALS.length}`;
+
+  if (filtered.length === 0) {
+    document.getElementById('centerPanel').innerHTML = `<div class="no-results">No signals match the current filters.</div>`;
+    return;
+  }
+  document.getElementById('centerPanel').innerHTML = filtered.map(renderCard).join('');
+}
+
+function toggleRaw(id, el) {
+  const box = document.getElementById(id);
+  const open = box.classList.toggle('open');
+  el.textContent = (open ? '▾' : '▸') + ' raw_content';
+}
+
+function render() {
+  renderFilters();
+  renderLeftPanel();
+  renderCards();
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

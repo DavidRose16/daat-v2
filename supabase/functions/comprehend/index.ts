@@ -643,6 +643,7 @@ Deno.serve(async (req) => {
         const e1 = { reason: "anthropic_api_failed", signal_id, status: anthropicRes.status, error: errText };
         console.log(JSON.stringify(e1)); errors.push(e1);
         failed++;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
@@ -651,8 +652,12 @@ Deno.serve(async (req) => {
       const e2 = { reason: "anthropic_api_failed", signal_id, error: String(e) };
       console.log(JSON.stringify(e2)); errors.push(e2);
       failed++;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       continue;
     }
+
+    // 2s delay after every successful Anthropic API call
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const rawText: string =
       (anthropicData?.content as Array<{ text?: string }>)?.[0]?.text ?? "";

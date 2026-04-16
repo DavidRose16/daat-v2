@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask DAAT</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --card: #111111;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+    --text: #e2e2e2;
+    --text-dim: #888;
+    --text-dimmer: #555;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --amber: #f59e0b;
+    --amber-bg: #140f00;
+    --amber-border: #2e2000;
+    --amber-text: #e8c97a;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+
+  /* Nav */
+  .tab-bar { display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 16px; position: sticky; top: 0; z-index: 50; }
+  .brand { font-size: 12px; font-weight: 600; color: #555; letter-spacing: .06em; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 0; }
+  .tab { font-size: 12px; font-weight: 500; padding: 12px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; display: inline-block; }
+  .tab:hover { color: var(--text-dim); }
+  .tab.active { color: var(--text); border-bottom-color: #555; }
+
+  /* Page */
+  .page { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* Form */
+  .form-section { margin-bottom: 20px; }
+  .form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 8px; display: block; }
+  .form-label .label-hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-dimmer); }
+
+  /* Intent segmented control */
+  .intent-group { display: flex; border: 1px solid var(--border2); border-radius: 7px; overflow: hidden; width: fit-content; }
+  .intent-btn { font-size: 12px; font-weight: 500; padding: 7px 18px; background: transparent; color: var(--text-dimmer); border: none; cursor: pointer; transition: background .12s, color .12s; white-space: nowrap; line-height: 1; }
+  .intent-btn + .intent-btn { border-left: 1px solid var(--border2); }
+  .intent-btn:hover { color: var(--text); background: #161616; }
+  .intent-btn.selected { background: #1e1e1e; color: var(--text); }
+
+  /* Task input */
+  .task-input {
+    width: 100%; background: #0c0c0c; border: 1px solid var(--border2);
+    border-radius: 8px; padding: 12px 14px; font-size: 14px;
+    color: var(--text); font-family: var(--sans); resize: vertical;
+    min-height: 88px; transition: border-color .15s; outline: none; line-height: 1.55;
+  }
+  .task-input:focus { border-color: #3a3a3a; }
+  .task-input::placeholder { color: var(--text-dimmer); }
+
+  /* Entities */
+  .entities-input {
+    width: 100%; background: #0c0c0c; border: 1px solid var(--border2);
+    border-radius: 8px; padding: 9px 14px; font-size: 13px;
+    color: var(--text); font-family: var(--sans); transition: border-color .15s; outline: none;
+  }
+  .entities-input:focus { border-color: #3a3a3a; }
+  .entities-input::placeholder { color: var(--text-dimmer); }
+
+  /* Ask button */
+  .ask-btn {
+    width: 100%; padding: 11px; background: #141414; border: 1px solid var(--border2);
+    border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text);
+    cursor: pointer; transition: background .12s, border-color .12s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ask-btn:hover:not(:disabled) { background: #1c1c1c; border-color: #3a3a3a; }
+  .ask-btn:disabled { opacity: .45; cursor: default; }
+  .ask-spinner { width: 13px; height: 13px; border: 2px solid #333; border-top-color: var(--text-dim); border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+  .ask-btn.running .ask-spinner { display: block; }
+  .ask-btn.running .ask-label { display: none; }
+
+  /* Result divider */
+  .result-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; display: none; }
+  .result-divider.visible { display: block; }
+
+  /* Summary */
+  .summary-text { font-size: 15px; line-height: 1.7; color: var(--text); margin-bottom: 20px; }
+
+  /* Priority card */
+  .priority-card { background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: 9px; padding: 16px 20px; margin-bottom: 20px; display: none; }
+  .priority-card.visible { display: block; }
+  .priority-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
+  .priority-text { font-size: 13px; line-height: 1.65; color: var(--amber-text); }
+
+  /* Context details */
+  details.context-details { margin-bottom: 16px; }
+  details.context-details > summary {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-dimmer); cursor: pointer; list-style: none; display: flex;
+    align-items: center; gap: 5px; padding: 8px 0; user-select: none; transition: color .12s;
+  }
+  details.context-details > summary:hover { color: var(--text-dim); }
+  details.context-details > summary::-webkit-details-marker { display: none; }
+  .summary-arrow { font-size: 12px; transition: transform .15s; display: inline-block; }
+  details.context-details[open] .summary-arrow { transform: rotate(90deg); }
+
+  .context-inner { padding: 16px 0 0; display: flex; flex-direction: column; gap: 16px; }
+  .ctx-section-title { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .ctx-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .ctx-list li { font-size: 13px; color: var(--text-dim); padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; }
+  .ctx-prose { font-size: 13px; color: var(--text-dim); line-height: 1.65; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; }
+
+  /* Footer */
+  .result-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 8px; }
+  .conf-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .conf-high   { color: #4ade80; background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.25); }
+  .conf-medium { color: #fbbf24; background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.25); }
+  .conf-low    { color: #f97316; background: rgba(249,115,22,0.08);  border: 1px solid rgba(249,115,22,0.25); }
+  .source-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .source-tag { font-size: 10px; padding: 2px 7px; background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text-dimmer); }
+
+  /* Error */
+  .error-box { background: #140808; border: 1px solid #3a1a1a; border-radius: 8px; padding: 14px 18px; color: #f87171; font-size: 13px; line-height: 1.6; display: none; }
+  .error-box.visible { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <span class="brand">DAAT v2</span>
+  <a href="/" class="tab">Admin</a>
+  <a href="/daat-ingest" class="tab">Ingest</a>
+  <a href="/daat-explorer" class="tab">Explorer</a>
+  <a href="/daat-synthesize" class="tab">Synthesize</a>
+  <a href="/daat-ask" class="tab active">Ask</a>
+</div>
+
+<div class="page">
+
+  <div class="form-section">
+    <label class="form-label">Intent</label>
+    <div class="intent-group" id="intentGroup">
+      <button class="intent-btn selected" data-intent="inform">Inform</button>
+      <button class="intent-btn" data-intent="decide">Decide</button>
+      <button class="intent-btn" data-intent="diagnose">Diagnose</button>
+      <button class="intent-btn" data-intent="plan">Plan</button>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <label class="form-label" for="taskInput">Task</label>
+    <textarea class="task-input" id="taskInput" placeholder="Describe what you're trying to understand or do…"></textarea>
+  </div>
+
+  <div class="form-section">
+    <label class="form-label" for="entitiesInput">Entities <span class="label-hint">— optional</span></label>
+    <input class="entities-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
+  </div>
+
+  <button class="ask-btn" id="askBtn">
+    <span class="ask-label">Ask</span>
+    <span class="ask-spinner"></span>
+  </button>
+
+  <hr class="result-divider" id="resultDivider">
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="resultArea" style="display:none">
+    <p class="summary-text" id="summaryText"></p>
+
+    <div class="priority-card" id="priorityCard">
+      <div class="priority-label">Priority context</div>
+      <p class="priority-text" id="priorityText"></p>
+    </div>
+
+    <details class="context-details" id="contextDetails">
+      <summary><span class="summary-arrow">›</span> Context</summary>
+      <div class="context-inner" id="contextInner"></div>
+    </details>
+
+    <div class="result-footer" id="resultFooter"></div>
+  </div>
+
+</div>
+
+<script>
+const FN_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/synthesize';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
+
+let selectedIntent = 'inform';
+
+document.getElementById('intentGroup').addEventListener('click', e => {
+  const btn = e.target.closest('.intent-btn');
+  if (!btn) return;
+  document.querySelectorAll('.intent-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedIntent = btn.dataset.intent;
+});
+
+document.getElementById('taskInput').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ask();
+});
+
+document.getElementById('askBtn').addEventListener('click', ask);
+
+async function ask() {
+  const task = document.getElementById('taskInput').value.trim();
+  if (!task) return;
+
+  const entitiesRaw = document.getElementById('entitiesInput').value;
+  const entities = entitiesRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  const btn       = document.getElementById('askBtn');
+  const errorBox  = document.getElementById('errorBox');
+  const divider   = document.getElementById('resultDivider');
+  const resultArea = document.getElementById('resultArea');
+
+  btn.disabled = true;
+  btn.classList.add('running');
+  errorBox.classList.remove('visible');
+  resultArea.style.display = 'none';
+
+  try {
+    const res = await fetch(FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SB_ANON}`,
+        'apikey': SB_ANON,
+      },
+      body: JSON.stringify({ task, entities, intent: selectedIntent }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || data.message || `HTTP ${res.status}`);
+
+    divider.classList.add('visible');
+    renderResult(data);
+  } catch (err) {
+    divider.classList.add('visible');
+    errorBox.textContent = err.message;
+    errorBox.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+  }
+}
+
+function renderResult(d) {
+  const ctx = d.context || {};
+
+  document.getElementById('summaryText').textContent = d.summary || '';
+
+  const pc = ctx.priority_context;
+  const card = document.getElementById('priorityCard');
+  if (pc && typeof pc === 'string') {
+    document.getElementById('priorityText').textContent = pc;
+    card.classList.add('visible');
+  } else {
+    card.classList.remove('visible');
+  }
+
+  const inner = document.getElementById('contextInner');
+  inner.innerHTML = '';
+
+  const sections = [
+    { key: 'decisions',     label: 'Decisions',     list: true  },
+    { key: 'people',        label: 'People',         list: true  },
+    { key: 'workflows',     label: 'Workflows',      list: true  },
+    { key: 'problems',      label: 'Problems',       list: true  },
+    { key: 'tacit_context', label: 'Tacit context',  list: false },
+    { key: 'uncertainty',   label: 'Uncertainty',    list: false },
+  ];
+
+  let hasContent = false;
+  for (const s of sections) {
+    const val = ctx[s.key];
+    if (!val || (Array.isArray(val) && val.length === 0)) continue;
+    hasContent = true;
+
+    const wrap  = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'ctx-section-title';
+    title.textContent = s.label;
+    wrap.appendChild(title);
+
+    if (s.list && Array.isArray(val)) {
+      const ul = document.createElement('ul');
+      ul.className = 'ctx-list';
+      for (const item of val) {
+        const li = document.createElement('li');
+        li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
+        ul.appendChild(li);
+      }
+      wrap.appendChild(ul);
+    } else if (typeof val === 'string') {
+      const p = document.createElement('p');
+      p.className = 'ctx-prose';
+      p.textContent = val;
+      wrap.appendChild(p);
+    }
+    inner.appendChild(wrap);
+  }
+
+  const details = document.getElementById('contextDetails');
+  details.style.display = hasContent ? '' : 'none';
+
+  const footer = document.getElementById('resultFooter');
+  footer.innerHTML = '';
+  if (d.confidence) {
+    const badge = document.createElement('span');
+    badge.className = `conf-badge conf-${d.confidence}`;
+    badge.textContent = d.confidence;
+    footer.appendChild(badge);
+  }
+  if (Array.isArray(d.sources) && d.sources.length > 0) {
+    const tags = document.createElement('div');
+    tags.className = 'source-tags';
+    for (const src of d.sources) {
+      const tag = document.createElement('span');
+      tag.className = 'source-tag';
+      tag.textContent = src;
+      tags.appendChild(tag);
+    }
+    footer.appendChild(tags);
+  }
+
+  document.getElementById('resultArea').style.display = '';
+}
+</script>
+</body>
+</html>

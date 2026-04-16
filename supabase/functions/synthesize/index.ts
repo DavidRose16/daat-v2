@@ -109,6 +109,7 @@ reading what is actually there.`;
 interface SynthesisQuery {
   task: string;
   entities?: string[];
+  intent?: string;
 }
 
 interface ComprehensionRow {
@@ -185,7 +186,7 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { task, entities = [] } = body;
+  const { task, entities = [], intent } = body;
   if (!task || typeof task !== "string") {
     return json({ error: "task is required and must be a string" }, 400);
   }
@@ -228,7 +229,7 @@ Deno.serve(async (req) => {
 
   // 3. Call Claude for synthesis
   const userMessage =
-    `QUERY:\n${JSON.stringify({ task, entities }, null, 2)}\n\n` +
+    `QUERY:\n${JSON.stringify({ task, entities, ...(intent ? { intent } : {}) }, null, 2)}\n\n` +
     `COMPREHENSIONS (${relevant.length} rows):\n` +
     JSON.stringify(
       relevant.map(r => ({

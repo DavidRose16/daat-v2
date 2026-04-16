@@ -110,8 +110,61 @@ JSONB schema not yet finalized. See docs/layers/layer-2-comprehension.md.
 
 ---
 
+---
+
+## Layer 3 — Synthesis
+
+One table read: `comprehensions_output` (the output of Layer 2).
+
+The synthesis layer takes a query (task + entities) from an AI agent, retrieves relevant comprehension rows, and uses Claude to produce a grounded, structured context briefing.
+
+Full doctrine lives in `docs/layers/synthesis-doctrine.md`.
+
+### Components
+
+**`src/synthesize.js`** — Node.js module with two exported functions:
+- `retrieveComprehensions({ task, entities })` — queries `comprehensions_output`, matches entity names against people/workflows/decisions/problems labels, returns up to 20 rows ordered by recency.
+- `synthesize(query, comprehensions)` — loads the doctrine from `docs/layers/synthesis-doctrine.md`, calls `claude-sonnet-4-6` with prompt caching on the doctrine, returns parsed JSON.
+
+Run directly as a test harness: `node src/synthesize.js`
+
+**`supabase/functions/synthesize/index.ts`** — Deno edge function deployed to Supabase. Accepts `POST { task: string, entities: string[] }`. Returns synthesis JSON.
+
+Endpoint: `https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1/synthesize`
+
+**`mcp/index.js`** — MCP server exposing one tool: `query_daat`. Takes `task` and `entities`, calls the synthesize endpoint, returns the structured response. Runs on stdio. Install with `npm install`, run with `node mcp/index.js`.
+
+### Synthesis output schema
+
+```json
+{
+  "summary": "2-4 sentence grounded synthesis",
+  "context": {
+    "decisions": [],
+    "people": [],
+    "workflows": [],
+    "problems": [],
+    "tacit_context": "string or null",
+    "uncertainty": "string or null"
+  },
+  "confidence": "high | medium | low",
+  "sources": []
+}
+```
+
+### Runtime requirements
+
+`.env` must contain:
+- `VITE_SUPABASE_URL` — Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` — Supabase anon key
+- `ANTHROPIC_API_KEY` — required for `src/synthesize.js` and `mcp/index.js`
+
+The Deno edge function reads secrets from Supabase environment (same as other functions).
+
+---
+
 ## What Has Not Been Designed Yet
 
-Everything above Layer 2 — entity discovery, relationships, intelligence, synthesis — is not yet designed.
+Everything above Layer 3 — entity discovery, relationships, intelligence — is not yet designed.
 
 **Do not build anything beyond what is described in this file without explicit instruction.**

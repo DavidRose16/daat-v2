@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAAT Synthesize</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --card: #111111;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+    --text: #e2e2e2;
+    --text-dim: #888;
+    --text-dimmer: #555;
+    --slack: #38bdf8;
+    --notion: #a78bfa;
+    --quickbooks: #4ade80;
+    --google: #fb923c;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; overflow: hidden; }
+
+  /* ── layout ── */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .main-area { flex: 1; display: flex; overflow: hidden; }
+  .left-panel { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--card); overflow: hidden; }
+  .center-panel { flex: 1; overflow-y: auto; padding: 16px; background: var(--bg); }
+
+  /* ── nav ── */
+  .tab-bar { flex-shrink: 0; display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 16px; }
+  .brand { font-size: 12px; font-weight: 600; color: #555; letter-spacing: .06em; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 0; }
+  .tab { font-size: 12px; font-weight: 500; padding: 12px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; display: inline-block; }
+  .tab:hover { color: var(--text-dim); }
+  .tab.active { color: var(--text); border-bottom-color: #555; }
+
+  /* ── stats bar ── */
+  .stats-bar { flex-shrink: 0; background: var(--card); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 20px; }
+  .stat-item { display: flex; flex-direction: column; gap: 1px; }
+  .stat-label { font-size: 10px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--mono); line-height: 1; }
+  .stat-divider { width: 1px; background: var(--border2); height: 30px; flex-shrink: 0; }
+
+  /* ── left panel body ── */
+  .lp-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .lp-sep { height: 1px; background: var(--border); flex-shrink: 0; }
+
+  /* ── form elements ── */
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); }
+  .form-hint { font-size: 10px; color: var(--text-dimmer); }
+  textarea.form-input, input.form-input {
+    background: #0a0a0a; border: 1px solid var(--border2); border-radius: 5px;
+    color: var(--text); font-size: 12px; font-family: var(--sans);
+    padding: 8px 10px; outline: none; resize: vertical; width: 100%;
+    transition: border-color .12s;
+  }
+  textarea.form-input { min-height: 72px; line-height: 1.5; }
+  textarea.form-input:focus, input.form-input:focus { border-color: #444; }
+  textarea.form-input::placeholder, input.form-input::placeholder { color: var(--text-dimmer); }
+
+  /* ── run button ── */
+  .run-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 8px 16px; font-size: 13px; font-weight: 500;
+    border-radius: 7px; border: 1px solid #1a4d2e; background: #0d2b1a;
+    color: #4ade80; cursor: pointer; transition: background .12s, border-color .12s;
+  }
+  .run-btn:hover:not(:disabled) { background: #122e1e; border-color: #2a6040; }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .run-btn .spinner { width: 12px; height: 12px; border: 2px solid #4ade8040; border-top-color: #4ade80; border-radius: 50%; animation: spin .7s linear infinite; display: none; flex-shrink: 0; }
+  .run-btn.running .spinner { display: block; }
+  .shortcut-hint { font-size: 10px; color: var(--text-dimmer); text-align: center; }
+
+  /* ── query preview box ── */
+  .preview-box {
+    background: #0a0a0a; border: 1px solid var(--border); border-radius: 5px;
+    padding: 8px 10px; font-size: 10px; font-family: var(--mono); color: var(--text-dimmer);
+    white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+  }
+
+  /* ── retrieved list ── */
+  .retrieved-header { display: flex; align-items: baseline; justify-content: space-between; }
+  .retrieved-count { font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); }
+  .retrieved-list { display: flex; flex-direction: column; }
+  .retrieved-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #161616; }
+  .retrieved-item:last-child { border-bottom: none; }
+  .retrieved-purpose { font-size: 11px; color: var(--text-dim); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+  .retrieved-time { font-size: 9px; color: var(--text-dimmer); font-family: var(--mono); flex-shrink: 0; }
+
+  /* ── source pills ── */
+  .sp { display: inline-flex; align-items: center; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; }
+  .sp.slack       { color: var(--slack);       background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.2); }
+  .sp.notion      { color: var(--notion);      background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+  .sp.quickbooks  { color: var(--quickbooks);  background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.2); }
+  .sp.google      { color: var(--google);      background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.2); }
+  .sp.generic     { color: var(--text-dim);    background: #1a1a1a; border: 1px solid var(--border2); }
+
+  /* source pills in result header (slightly larger) */
+  .source-pill { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .source-pill.slack       { color: var(--slack);       background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.2); }
+  .source-pill.notion      { color: var(--notion);      background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+  .source-pill.quickbooks  { color: var(--quickbooks);  background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.2); }
+  .source-pill.google      { color: var(--google);      background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.2); }
+  .source-pill.generic     { color: var(--text-dim);    background: #1a1a1a; border: 1px solid var(--border2); }
+
+  /* ── confidence badge ── */
+  .conf-badge { font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .conf-high   { color: #4ade80; background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.3); }
+  .conf-medium { color: #fbbf24; background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.3); }
+  .conf-low    { color: #f97316; background: rgba(249,115,22,0.1);  border: 1px solid rgba(249,115,22,0.3); }
+
+  /* ── center panel states ── */
+  .idle-state { color: var(--text-dimmer); font-size: 12px; padding: 60px 20px; text-align: center; line-height: 1.8; }
+  .loading-state { color: var(--text-dimmer); font-size: 12px; padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .loading-spinner { width: 20px; height: 20px; border: 2px solid #2a2a2a; border-top-color: #4ade80; border-radius: 50%; animation: spin .8s linear infinite; }
+  .loading-step { font-size: 10px; color: var(--text-dimmer); }
+  .error-box { background: #1a0808; border: 1px solid #4d1a1a; border-radius: 7px; padding: 14px 16px; color: #f87171; font-size: 12px; }
+  .error-box pre { font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; margin-top: 8px; opacity: .8; }
+
+  /* ── result card ── */
+  .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .result-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .result-sources { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .result-elapsed { font-size: 10px; color: var(--text-dimmer); font-family: var(--mono); margin-left: auto; }
+
+  .result-summary { background: #0f0f0f; border: 1px solid var(--border); border-radius: 5px; padding: 12px 14px; }
+  .result-summary-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 7px; }
+  .result-summary-text { font-size: 13px; color: var(--text); line-height: 1.65; }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .result-field { background: #0f0f0f; border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; }
+  .result-field-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 8px; }
+  .result-field-list { display: flex; flex-direction: column; gap: 5px; }
+  .result-field-item { font-size: 11px; color: var(--text-dim); line-height: 1.5; padding-left: 12px; position: relative; }
+  .result-field-item::before { content: '·'; position: absolute; left: 2px; color: var(--text-dimmer); }
+  .result-field-empty { font-size: 11px; color: var(--text-dimmer); font-style: italic; }
+
+  .result-prose { background: #0f0f0f; border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; }
+  .result-prose-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 6px; }
+  .result-prose-text { font-size: 11px; color: var(--text-dim); line-height: 1.65; }
+
+  /* ── raw JSON toggle ── */
+  .raw-toggle { font-size: 10px; color: var(--text-dimmer); cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; }
+  .raw-toggle:hover { color: var(--text-dim); }
+  .raw-box { margin-top: 8px; background: #0a0a0a; border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; font-size: 10px; font-family: var(--mono); color: var(--text-dimmer); white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; display: none; }
+  .raw-box.open { display: block; }
+
+  /* ── animation ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Nav -->
+  <div class="tab-bar">
+    <span class="brand">DAAT v2</span>
+    <a href="/" class="tab">Admin</a>
+    <a href="/daat-ingest" class="tab">Ingest</a>
+    <a href="/daat-explorer" class="tab">Explorer</a>
+    <a href="/daat-synthesize" class="tab active">Synthesize</a>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar" id="statsBar">
+    <div style="color:var(--text-dimmer);font-size:12px">Loading…</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main-area">
+
+    <!-- Left panel -->
+    <div class="left-panel">
+      <div class="lp-body">
+
+        <div class="form-group">
+          <label class="form-label">Task</label>
+          <textarea class="form-input" id="taskInput" rows="4"
+            placeholder="What is the agent trying to do? Describe the task in plain language."
+            oninput="updateQueryPreview()"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Entities</label>
+          <input class="form-input" id="entitiesInput" type="text"
+            placeholder="slack, onboarding, product"
+            oninput="updateQueryPreview()">
+          <span class="form-hint">Comma-separated — people, systems, workflows, topics</span>
+        </div>
+
+        <button class="run-btn" id="runBtn" onclick="runSynthesis()">
+          <div class="spinner"></div>
+          <span id="runBtnText">Run Synthesis</span>
+        </button>
+        <div class="shortcut-hint">⌘↵ to run</div>
+
+        <div class="lp-sep"></div>
+
+        <div class="form-group">
+          <div class="form-label">Query object</div>
+          <div class="preview-box" id="queryPreview">{
+  "task": "",
+  "entities": []
+}</div>
+        </div>
+
+        <div class="lp-sep"></div>
+
+        <div class="form-group" id="retrievedSection" style="display:none">
+          <div class="retrieved-header">
+            <div class="form-label">Retrieved</div>
+            <span class="retrieved-count" id="retrievedCount"></span>
+          </div>
+          <div class="retrieved-list" id="retrievedList"></div>
+        </div>
+
+        <div id="retrievedPlaceholder" style="font-size:11px;color:var(--text-dimmer)">
+          Retrieved comprehensions will appear here after a run.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Center panel -->
+    <div class="center-panel" id="centerPanel">
+      <div class="idle-state">
+        Enter a task and run synthesis to see results.<br>
+        <span style="font-size:11px">Retrieves matching comprehensions and synthesizes grounded context using Claude.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
+const FN_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1';
+
+const SB_HEADERS = {
+  'apikey': SB_ANON,
+  'Authorization': `Bearer ${SB_ANON}`,
+  'Content-Type': 'application/json',
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function rel(ts) {
+  if (!ts) return '—';
+  const diff = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+// ── stats bar ─────────────────────────────────────────────────────────────────
+
+async function loadStats() {
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/comprehensions_output?select=id`,
+      { headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
+    );
+    const cr = res.headers.get('content-range') || '';
+    const m = cr.match(/\/(\d+)/);
+    const count = m ? parseInt(m[1], 10) : '—';
+    document.getElementById('statsBar').innerHTML = `
+      <div class="stat-item">
+        <div class="stat-label">Comprehensions</div>
+        <div class="stat-value">${count}</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div style="font-size:11px;color:var(--text-dimmer);line-height:1.5">
+        Query DAAT with a task and entities.<br>Retrieves matching comprehensions → Claude synthesizes grounded context.
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('statsBar').innerHTML =
+      `<div style="color:#f87171;font-size:12px">Stats failed: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── query preview (live-updates as you type) ──────────────────────────────────
+
+function updateQueryPreview() {
+  const task = document.getElementById('taskInput').value.trim();
+  const raw  = document.getElementById('entitiesInput').value.trim();
+  const entities = raw ? raw.split(',').map(e => e.trim()).filter(Boolean) : [];
+  document.getElementById('queryPreview').textContent = JSON.stringify({ task, entities }, null, 2);
+}
+
+// ── entity matching — mirrors src/synthesize.js ───────────────────────────────
+
+const ENTITY_FIELDS = ['people', 'workflows', 'decisions', 'problems'];
+
+function matchesEntities(comprehension, terms) {
+  if (!comprehension) return false;
+  for (const f of ENTITY_FIELDS) {
+    const arr = comprehension[f];
+    if (Array.isArray(arr)) {
+      for (const item of arr) {
+        if (item && item.label && terms.some(t => item.label.toLowerCase().includes(t))) return true;
+      }
+    }
+  }
+  if (comprehension.signal_purpose && terms.some(t => comprehension.signal_purpose.toLowerCase().includes(t))) return true;
+  if (comprehension.summary       && terms.some(t => comprehension.summary.toLowerCase().includes(t)))        return true;
+  return false;
+}
+
+// ── retrieved panel ───────────────────────────────────────────────────────────
+
+function renderRetrieved(rows) {
+  document.getElementById('retrievedPlaceholder').style.display = 'none';
+  document.getElementById('retrievedSection').style.display     = 'block';
+  document.getElementById('retrievedCount').textContent = `${rows.length} rows`;
+
+  document.getElementById('retrievedList').innerHTML = rows.map(r => {
+    const core = Array.isArray(r.signals_core) ? r.signals_core[0] : r.signals_core;
+    const src     = core?.source || 'generic';
+    const purpose = r.comprehension?.signal_purpose || '—';
+    return `<div class="retrieved-item">
+      <span class="sp ${src}">${esc(src)}</span>
+      <span class="retrieved-purpose" title="${esc(purpose)}">${esc(purpose)}</span>
+      <span class="retrieved-time">${rel(r.comprehended_at)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── run ───────────────────────────────────────────────────────────────────────
+
+async function runSynthesis() {
+  const task = document.getElementById('taskInput').value.trim();
+  if (!task) { document.getElementById('taskInput').focus(); return; }
+
+  const raw      = document.getElementById('entitiesInput').value.trim();
+  const entities = raw ? raw.split(',').map(e => e.trim()).filter(Boolean) : [];
+  const query    = { task, entities };
+
+  const btn     = document.getElementById('runBtn');
+  const btnText = document.getElementById('runBtnText');
+  btn.disabled  = true;
+  btn.classList.add('running');
+  btnText.textContent = 'Running';
+
+  const t0 = Date.now();
+
+  const setCenter = html => { document.getElementById('centerPanel').innerHTML = html; };
+
+  setCenter(`<div class="loading-state">
+    <div class="loading-spinner"></div>
+    <div>Synthesizing… <span id="elapsedTick">0.0s</span></div>
+    <div class="loading-step">Retrieving comprehensions → calling Claude</div>
+  </div>`);
+
+  const ticker = setInterval(() => {
+    const el = document.getElementById('elapsedTick');
+    if (el) el.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  try {
+    const [synthRes, compRaw] = await Promise.all([
+      fetch(`${FN_URL}/synthesize`, {
+        method: 'POST',
+        headers: SB_HEADERS,
+        body: JSON.stringify(query),
+      }),
+      fetch(
+        `${SB_URL}/rest/v1/comprehensions_output` +
+        `?select=signal_id,comprehension,comprehended_at,signals_core!inner(source)` +
+        `&order=created_at.desc&limit=100`,
+        { headers: SB_HEADERS }
+      ).then(r => r.ok ? r.json() : []).catch(() => []),
+    ]);
+
+    clearInterval(ticker);
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(2);
+
+    // Show retrieved rows
+    if (Array.isArray(compRaw) && compRaw.length > 0) {
+      const terms   = entities.map(e => e.toLowerCase());
+      let preview;
+      if (terms.length === 0) {
+        preview = compRaw.slice(0, 20);
+      } else {
+        const matched = compRaw.filter(r => matchesEntities(r.comprehension, terms));
+        preview = (matched.length > 0 ? matched : compRaw).slice(0, 20);
+      }
+      renderRetrieved(preview);
+    }
+
+    if (!synthRes.ok) {
+      const errText = await synthRes.text().catch(() => '');
+      let pretty;
+      try { pretty = JSON.stringify(JSON.parse(errText), null, 2); } catch { pretty = errText; }
+      setCenter(`<div class="error-box">
+        <div>HTTP ${synthRes.status} — ${elapsed}s</div>
+        <pre>${esc(pretty)}</pre>
+      </div>`);
+      return;
+    }
+
+    let result;
+    try {
+      result = await synthRes.json();
+    } catch(e) {
+      setCenter(`<div class="error-box">
+        <div>Failed to parse response — ${elapsed}s</div>
+        <pre>${esc(e.message)}</pre>
+      </div>`);
+      return;
+    }
+
+    renderResult(result, elapsed);
+
+  } catch(e) {
+    clearInterval(ticker);
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(2);
+    setCenter(`<div class="error-box">
+      <div>Request failed — ${elapsed}s</div>
+      <pre>${esc(e.message)}</pre>
+    </div>`);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+    btnText.textContent = 'Run Synthesis';
+  }
+}
+
+// ── result rendering ──────────────────────────────────────────────────────────
+
+function renderResult(r, elapsed) {
+  const conf      = (r.confidence || 'medium').toLowerCase();
+  const confClass = { high: 'conf-high', medium: 'conf-medium', low: 'conf-low' }[conf] || 'conf-medium';
+  const ctx       = r.context || {};
+  const sources   = Array.isArray(r.sources) ? r.sources : [];
+
+  function sourcePill(label) {
+    const key = label.toLowerCase().includes('slack')       ? 'slack'
+              : label.toLowerCase().includes('notion')      ? 'notion'
+              : label.toLowerCase().includes('quickbooks')  ? 'quickbooks'
+              : label.toLowerCase().includes('google')      ? 'google' : 'generic';
+    return `<span class="source-pill ${key}">${esc(label)}</span>`;
+  }
+
+  function fieldBlock(items, label) {
+    const arr = Array.isArray(items) ? items.filter(Boolean) : [];
+    return `<div class="result-field">
+      <div class="result-field-label">${esc(label)}</div>
+      <div class="result-field-list">${
+        arr.length
+          ? arr.map(i => `<div class="result-field-item">${esc(i)}</div>`).join('')
+          : `<div class="result-field-empty">none</div>`
+      }</div>
+    </div>`;
+  }
+
+  function proseBlock(text, label) {
+    if (!text) return '';
+    return `<div class="result-prose">
+      <div class="result-prose-label">${esc(label)}</div>
+      <div class="result-prose-text">${esc(text)}</div>
+    </div>`;
+  }
+
+  document.getElementById('centerPanel').innerHTML = `
+    <div class="result-card">
+
+      <div class="result-header">
+        <span class="conf-badge ${confClass}">${esc(conf)}</span>
+        <div class="result-sources">${sources.map(sourcePill).join('')}</div>
+        <span class="result-elapsed">${elapsed}s</span>
+      </div>
+
+      <div class="result-summary">
+        <div class="result-summary-label">Summary</div>
+        <div class="result-summary-text">${esc(r.summary || '—')}</div>
+      </div>
+
+      <div class="result-grid">
+        ${fieldBlock(ctx.decisions, 'Decisions')}
+        ${fieldBlock(ctx.people,    'People')}
+        ${fieldBlock(ctx.workflows, 'Workflows')}
+        ${fieldBlock(ctx.problems,  'Problems')}
+      </div>
+
+      ${proseBlock(ctx.tacit_context, 'Tacit context')}
+      ${proseBlock(ctx.uncertainty,   'Uncertainty')}
+
+      <div>
+        <div class="raw-toggle" onclick="toggleRaw(this)">▸ raw JSON</div>
+        <div class="raw-box" id="rawBox">${esc(JSON.stringify(r, null, 2))}</div>
+      </div>
+
+    </div>
+  `;
+}
+
+function toggleRaw(el) {
+  const box = document.getElementById('rawBox');
+  const open = box.classList.toggle('open');
+  el.textContent = (open ? '▾' : '▸') + ' raw JSON';
+}
+
+// ── keyboard shortcut ─────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runSynthesis();
+  }
+});
+
+// ── init ──────────────────────────────────────────────────────────────────────
+updateQueryPreview();
+loadStats();
+</script>
+</body>
+</html>

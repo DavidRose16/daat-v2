@@ -549,6 +549,299 @@ function validateAndNormalize(parsed: unknown): Record<string, unknown> {
 }
 
 // ============================================================
+// Notion preprocessing — Layer 1
+//
+// Strips all block-level API metadata (ids, timestamps, user refs,
+// annotations, colors) and converts blocks to a compact markdown
+// representation. Reduces payload by ~75–80% for typical pages.
+// ============================================================
+
+const NOTION_DIRECT_THRESHOLD = 20_000; // chars; at or below → one Claude call
+const NOTION_CHUNK_TARGET     = 15_000; // chars per chunk (target, not hard cap)
+
+// Extract plain text from a Notion rich_text array.
+function extractRichText(rt: unknown): string {
+  if (!Array.isArray(rt)) return "";
+  return (rt as Array<Record<string, unknown>>)
+    .map(span => (typeof span?.plain_text === "string" ? span.plain_text : ""))
+    .join("");
+}
+
+// Convert one Notion block to a single markdown-style line.
+function blockToLine(block: Record<string, unknown>): string {
+  const type = block.type as string;
+  const content = block[type] as Record<string, unknown> | undefined;
+
+  switch (type) {
+    case "heading_1":          return `# ${extractRichText(content?.rich_text)}`;
+    case "heading_2":          return `## ${extractRichText(content?.rich_text)}`;
+    case "heading_3":          return `### ${extractRichText(content?.rich_text)}`;
+    case "paragraph":          return extractRichText(content?.rich_text);
+    case "bulleted_list_item": return `- ${extractRichText(content?.rich_text)}`;
+    case "numbered_list_item": return `1. ${extractRichText(content?.rich_text)}`;
+    case "quote":              return `> ${extractRichText(content?.rich_text)}`;
+    case "callout":            return `> ${extractRichText(content?.rich_text)}`;
+    case "toggle":             return extractRichText(content?.rich_text);
+    case "to_do": {
+      const checked = content?.checked ? "[x]" : "[ ]";
+      return `${checked} ${extractRichText(content?.rich_text)}`;
+    }
+    case "code": {
+      const lang = typeof content?.language === "string" ? content.language : "";
+      return `\`\`\`${lang}\n${extractRichText(content?.rich_text)}\n\`\`\``;
+    }
+    case "child_page":
+      return `[child page: ${typeof content?.title === "string" ? content.title : ""}]`;
+    case "divider":
+      return "---";
+    default:
+      return content?.rich_text ? extractRichText(content.rich_text) : "";
+  }
+}
+
+// Build the page header string (title + breadcrumb) from raw_content and source_data.
+function buildPageHeader(rawContent: unknown, sourceData: unknown): string {
+  const raw = rawContent as Record<string, unknown>;
+  const sd  = sourceData  as Record<string, unknown>;
+
+  const page     = raw?.page as Record<string, unknown> | undefined;
+  const titleProp = (page?.properties as Record<string, unknown>)?.title as Record<string, unknown> | undefined;
+  const title    = extractRichText(titleProp?.title) || "(untitled)";
+
+  let breadcrumb: string[] = [];
+  if (typeof sd?.breadcrumb === "string") {
+    try { breadcrumb = JSON.parse(sd.breadcrumb); } catch { /* skip */ }
+  } else if (Array.isArray(sd?.breadcrumb)) {
+    breadcrumb = sd.breadcrumb as string[];
+  }
+
+  const parts = [`PAGE: ${title}`];
+  if (breadcrumb.length > 0) parts.push(`BREADCRUMB: ${breadcrumb.join(" > ")}`);
+  return parts.join("\n");
+}
+
+// Line representation used for chunking decisions.
+interface NotionLine {
+  text: string;
+  isSectionBreak: boolean; // true for heading_1 / heading_2 — natural chunk boundaries
+}
+
+// Convert all blocks in raw_content to NotionLine objects (empty lines filtered out).
+function blocksToLines(rawContent: unknown): NotionLine[] {
+  const raw    = rawContent as Record<string, unknown>;
+  const blocks = Array.isArray(raw?.blocks)
+    ? (raw.blocks as Array<Record<string, unknown>>)
+    : [];
+
+  const SECTION_BREAK_TYPES = new Set(["heading_1", "heading_2"]);
+  return blocks
+    .map(block => ({
+      text:           blockToLine(block),
+      isSectionBreak: SECTION_BREAK_TYPES.has(block.type as string),
+    }))
+    .filter(l => l.text.trim() !== "");
+}
+
+// Build the full page content as a single string (used for direct, non-chunked path).
+function buildFullContent(header: string, lines: NotionLine[]): string {
+  return [header, "", ...lines.map(l => l.text)].join("\n");
+}
+
+// ============================================================
+// Notion preprocessing — Layer 2: chunking
+//
+// Splits lines into chunks at heading_1/heading_2 boundaries,
+// greedily packing sections to stay near NOTION_CHUNK_TARGET.
+// Each chunk gets the page header for context.
+// ============================================================
+
+function chunkPageLines(header: string, lines: NotionLine[]): string[] {
+  if (lines.length === 0) return [header];
+
+  // Group consecutive lines into sections; each new heading_1/heading_2 starts a section.
+  const sections: string[][] = [[]];
+  for (const line of lines) {
+    if (line.isSectionBreak && sections[sections.length - 1].length > 0) {
+      sections.push([]);
+    }
+    sections[sections.length - 1].push(line.text);
+  }
+
+  // Greedily pack sections into chunks targeting NOTION_CHUNK_TARGET chars.
+  const chunks: string[] = [];
+  let chunkParts: string[] = [];
+  let chunkBodyLen = 0;
+
+  for (const section of sections) {
+    const sectionText = section.join("\n");
+    if (chunkBodyLen + sectionText.length > NOTION_CHUNK_TARGET && chunkParts.length > 0) {
+      chunks.push(`${header}\n\n${chunkParts.join("\n")}`);
+      chunkParts   = [sectionText];
+      chunkBodyLen = sectionText.length;
+    } else {
+      chunkParts.push(sectionText);
+      chunkBodyLen += sectionText.length;
+    }
+  }
+  if (chunkParts.length > 0) {
+    chunks.push(`${header}\n\n${chunkParts.join("\n")}`);
+  }
+
+  return chunks.length > 0 ? chunks : [header];
+}
+
+// ============================================================
+// Notion preprocessing — Layer 3: merge
+//
+// Merges multiple per-chunk comprehension objects into one.
+// Array fields: concatenated and deduplicated by label.
+// Prose fields: joined with a space.
+// ============================================================
+
+function mergeArrayField(
+  chunks: Record<string, unknown>[],
+  field: string,
+): unknown[] {
+  const seen   = new Set<string>();
+  const result: unknown[] = [];
+  for (const chunk of chunks) {
+    const arr = chunk[field];
+    if (!Array.isArray(arr)) continue;
+    for (const item of arr) {
+      const label = String((item as Record<string, unknown>)?.label ?? "").toLowerCase().trim();
+      if (label && !seen.has(label)) {
+        seen.add(label);
+        result.push(item);
+      }
+    }
+  }
+  return result;
+}
+
+function mergeChunkComprehensions(
+  chunks: Record<string, unknown>[],
+): Record<string, unknown> {
+  if (chunks.length === 1) return chunks[0];
+
+  const merged: Record<string, unknown> = {};
+
+  // Structural fields from first chunk
+  merged.context        = chunks[0].context ?? null;
+  merged.signal_purpose = chunks.find(c => c.signal_purpose != null)?.signal_purpose ?? null;
+
+  // Array fields: concat + deduplicate by label
+  for (const field of ["workflows", "problems", "tools", "decisions", "people", "states"]) {
+    merged[field] = mergeArrayField(chunks, field);
+  }
+
+  // Prose fields: join non-null, non-empty values
+  const joinProse = (field: string): string | null =>
+    chunks
+      .map(c => c[field])
+      .filter(v => v && typeof v === "string")
+      .join(" ") || null;
+
+  merged.summary     = joinProse("summary");
+  merged.uncertainty = joinProse("uncertainty");
+  merged.tacit       = joinProse("tacit");
+
+  return merged;
+}
+
+// ============================================================
+// Single-call Claude helper
+//
+// Encapsulates: API call → rate-limit sleep → JSON strip →
+// JSON.parse → validateAndNormalize.
+// Always sleeps 2 s before returning (success or failure) to
+// respect rate limits.
+// ============================================================
+
+async function callClaude(
+  userMessage: string,
+  anthropicApiKey: string,
+  signal_id: string,
+  chunkCtx?: { chunk: number; total_chunks: number },
+): Promise<
+  | { ok: true;  comprehension: Record<string, unknown> }
+  | { ok: false; error: Record<string, unknown> }
+> {
+  const ctx: Record<string, unknown> = chunkCtx ?? {};
+
+  let anthropicData: Record<string, unknown>;
+
+  try {
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":           anthropicApiKey,
+        "anthropic-version":   "2023-06-01",
+        "content-type":        "application/json",
+      },
+      body: JSON.stringify({
+        model:      "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system:     DOCTRINE,
+        messages:   [{ role: "user", content: userMessage }],
+      }),
+    });
+
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text().catch(() => "");
+      await new Promise(r => setTimeout(r, 2000));
+      return {
+        ok: false,
+        error: { reason: "anthropic_api_failed", signal_id, ...ctx, status: anthropicRes.status, error: errText },
+      };
+    }
+
+    anthropicData = await anthropicRes.json();
+  } catch (e) {
+    await new Promise(r => setTimeout(r, 2000));
+    return {
+      ok: false,
+      error: { reason: "anthropic_api_failed", signal_id, ...ctx, error: String(e) },
+    };
+  }
+
+  // Rate-limit buffer after every successful API call
+  await new Promise(r => setTimeout(r, 2000));
+
+  const rawText: string =
+    (anthropicData?.content as Array<{ text?: string }>)?.[0]?.text ?? "";
+  const jsonText = rawText
+    .replace(/^```(?:json)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (e) {
+    return {
+      ok: false,
+      error: {
+        reason:   "json_parse_failed",
+        signal_id,
+        ...ctx,
+        error:    String(e),
+        raw_text: rawText.slice(0, 500),
+      },
+    };
+  }
+
+  try {
+    const comprehension = validateAndNormalize(parsed);
+    return { ok: true, comprehension };
+  } catch (e) {
+    return {
+      ok: false,
+      error: { reason: "schema_validation_failed", signal_id, ...ctx, error: String(e) },
+    };
+  }
+}
+
+// ============================================================
 // Main handler
 // ============================================================
 
@@ -564,14 +857,14 @@ Deno.serve(async (req) => {
   const limitParam = url.searchParams.get("limit");
   const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : 10;
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseUrl       = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+  const anthropicApiKey   = Deno.env.get("ANTHROPIC_API_KEY")!;
 
   const sbHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${supabaseServiceKey}`,
-    apikey: supabaseServiceKey,
+    Authorization:  `Bearer ${supabaseServiceKey}`,
+    apikey:         supabaseServiceKey,
   };
 
   // 1. Fetch all pending assembly rows (comprehended_at IS NULL, source != google)
@@ -594,8 +887,8 @@ Deno.serve(async (req) => {
   const rows = allRows.slice(0, limit);
 
   let succeeded = 0;
-  let failed = 0;
-  let skipped = 0;
+  let failed    = 0;
+  let skipped   = 0;
   const errors: unknown[] = [];
 
   // 2. Process sequentially
@@ -612,79 +905,99 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // 2b. Build user message
-    const userMessage =
-      `${sourcePrompt}\n\n` +
-      `---\n\n` +
-      `SOURCE DATA JSON: ${JSON.stringify(source_data)}\n\n` +
-      `RAW CONTENT JSON: ${JSON.stringify(raw_content)}\n\n` +
-      `Return only valid JSON matching the schema exactly. Do not include any text outside the JSON object.`;
+    // 2b–2e. Build message(s) and call Claude.
+    //
+    // Notion / documentation path: preprocess raw blocks into compact markdown,
+    // then chunk by heading sections if the cleaned text exceeds the direct
+    // threshold. All other archetypes use the original raw-JSON path.
+    let comprehension!: Record<string, unknown>;
 
-    // 2c. Call Anthropic API
-    let anthropicData: Record<string, unknown>;
-    try {
-      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": anthropicApiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 4096,
-          system: DOCTRINE,
-          messages: [{ role: "user", content: userMessage }],
-        }),
-      });
+    if (content_archetype === "documentation") {
+      // Layer 1 — preprocess
+      const rawLen      = JSON.stringify(raw_content).length;
+      const header      = buildPageHeader(raw_content, source_data);
+      const lines       = blocksToLines(raw_content);
+      const fullContent = buildFullContent(header, lines);
+      const cleanedLen  = fullContent.length;
+      const isChunked   = cleanedLen > NOTION_DIRECT_THRESHOLD;
+      const inputs      = isChunked ? chunkPageLines(header, lines) : [fullContent];
 
-      if (!anthropicRes.ok) {
-        const errText = await anthropicRes.text().catch(() => "");
-        const e1 = { reason: "anthropic_api_failed", signal_id, status: anthropicRes.status, error: errText };
-        console.log(JSON.stringify(e1)); errors.push(e1);
-        failed++;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
+      console.log(JSON.stringify({
+        step:        "notion_prepare",
+        signal_id,
+        raw_len:     rawLen,
+        cleaned_len: cleanedLen,
+        chunked:     isChunked,
+        chunks:      inputs.length,
+      }));
+
+      // Layer 2 — call Claude once per chunk (or once for direct path)
+      const chunkResults: Record<string, unknown>[] = [];
+      let signalFailed = false;
+
+      for (let ci = 0; ci < inputs.length; ci++) {
+        const chunkCtx = isChunked
+          ? { chunk: ci + 1, total_chunks: inputs.length }
+          : undefined;
+        const chunkLabel = isChunked
+          ? `[Chunk ${ci + 1} of ${inputs.length} — comprehend only what appears in this excerpt.]\n\n`
+          : "";
+        const userMessage =
+          `${sourcePrompt}\n\n` +
+          `---\n\n` +
+          `SOURCE DATA JSON: ${JSON.stringify(source_data)}\n\n` +
+          `NOTION PAGE CONTENT:\n${chunkLabel}${inputs[ci]}\n\n` +
+          `Return only valid JSON matching the schema exactly. Do not include any text outside the JSON object.`;
+
+        const result = await callClaude(userMessage, anthropicApiKey, signal_id, chunkCtx);
+        if (!result.ok) {
+          console.log(JSON.stringify(result.error));
+          errors.push(result.error);
+          signalFailed = true;
+          break;
+        }
+        chunkResults.push(result.comprehension);
       }
 
-      anthropicData = await anthropicRes.json();
-    } catch (e) {
-      const e2 = { reason: "anthropic_api_failed", signal_id, error: String(e) };
-      console.log(JSON.stringify(e2)); errors.push(e2);
-      failed++;
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      continue;
-    }
+      if (signalFailed) { failed++; continue; }
 
-    // 2s delay after every successful Anthropic API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Layer 3 — merge if chunked
+      if (isChunked) {
+        try {
+          const merged = mergeChunkComprehensions(chunkResults);
+          comprehension = validateAndNormalize(merged);
+          console.log(JSON.stringify({
+            step:          "notion_merge",
+            signal_id,
+            chunks_merged: chunkResults.length,
+          }));
+        } catch (e) {
+          const emrg = { reason: "merge_failed", signal_id, error: String(e) };
+          console.log(JSON.stringify(emrg)); errors.push(emrg);
+          failed++;
+          continue;
+        }
+      } else {
+        comprehension = chunkResults[0];
+      }
 
-    const rawText: string =
-      (anthropicData?.content as Array<{ text?: string }>)?.[0]?.text ?? "";
+    } else {
+      // Original path — Slack and QuickBooks: send raw JSON unchanged
+      const userMessage =
+        `${sourcePrompt}\n\n` +
+        `---\n\n` +
+        `SOURCE DATA JSON: ${JSON.stringify(source_data)}\n\n` +
+        `RAW CONTENT JSON: ${JSON.stringify(raw_content)}\n\n` +
+        `Return only valid JSON matching the schema exactly. Do not include any text outside the JSON object.`;
 
-    // Strip markdown code fences if Claude wrapped the response
-    const jsonText = rawText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-
-    // 2d. Parse JSON response
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch (e) {
-      const e3 = { reason: "json_parse_failed", signal_id, error: String(e), raw_text: rawText.slice(0, 500) };
-      console.log(JSON.stringify(e3)); errors.push(e3);
-      failed++;
-      continue;
-    }
-
-    // 2e. Validate shape and normalize
-    let comprehension: Record<string, unknown>;
-    try {
-      comprehension = validateAndNormalize(parsed);
-    } catch (e) {
-      const e4 = { reason: "schema_validation_failed", signal_id, error: String(e) };
-      console.log(JSON.stringify(e4)); errors.push(e4);
-      failed++;
-      continue;
+      const result = await callClaude(userMessage, anthropicApiKey, signal_id);
+      if (!result.ok) {
+        console.log(JSON.stringify(result.error));
+        errors.push(result.error);
+        failed++;
+        continue;
+      }
+      comprehension = result.comprehension;
     }
 
     // 2f. Insert into comprehensions_output (must succeed before updating assembly)
@@ -692,14 +1005,14 @@ Deno.serve(async (req) => {
     const insertRes = await fetch(
       `${supabaseUrl}/rest/v1/comprehensions_output`,
       {
-        method: "POST",
+        method:  "POST",
         headers: { ...sbHeaders, Prefer: "return=minimal" },
-        body: JSON.stringify({
+        body:    JSON.stringify({
           signal_id,
-          assembly_id: assemblyId,
+          assembly_id:     assemblyId,
           owner_id,
           comprehension,
-          model: "claude-sonnet-4-6",
+          model:           "claude-sonnet-4-6",
           comprehended_at: now,
         }),
       },
@@ -727,9 +1040,9 @@ Deno.serve(async (req) => {
     const updateRes = await fetch(
       `${supabaseUrl}/rest/v1/comprehensions_assembly?id=eq.${assemblyId}`,
       {
-        method: "PATCH",
+        method:  "PATCH",
         headers: sbHeaders,
-        body: JSON.stringify({ comprehended_at: now }),
+        body:    JSON.stringify({ comprehended_at: now }),
       },
     );
 

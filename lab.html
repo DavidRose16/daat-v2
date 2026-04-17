@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lab — Daat</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding-bottom:80px}
+
+/* ── header ── */
+.admin-header{background:#0a0a0a;border-bottom:1px solid #1e1e1e;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.header-left{display:flex;align-items:center;gap:0}
+.header-brand{font-size:12px;font-weight:600;color:#555;letter-spacing:.06em;padding:10px 16px 10px 0;border-right:1px solid #1e1e1e;margin-right:0}
+.tab{font-size:12px;font-weight:500;padding:12px 16px;color:#555;text-decoration:none;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;white-space:nowrap;display:inline-block}
+.tab:hover{color:#aaa}
+.tab.active{color:#e5e5e5;border-bottom-color:#555}
+.header-right{display:flex;align-items:center;gap:16px}
+.refresh-countdown{font-size:11px;color:#444}
+.refresh-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;transition:color .12s,border-color .12s}
+.refresh-btn:hover{color:#fff;border-color:#444}
+.last-refreshed{font-size:11px;color:#333}
+
+/* ── layout ── */
+.page{padding:32px 32px 0}
+.section{margin-bottom:40px}
+.section-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#444;margin-bottom:14px}
+
+/* ── cards ── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:18px 20px;position:relative}
+.card.border-green{border-color:#1a4d2e}
+.card.border-red{border-color:#4d1a1a}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.card-name{font-size:14px;font-weight:600;color:#fff}
+.card-body{display:flex;flex-direction:column;gap:6px}
+.card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card-label{font-size:11px;color:#555;flex-shrink:0}
+.card-value{font-size:12px;color:#aaa;text-align:right;word-break:break-all}
+.card-value.prominent{color:#e5e5e5;font-weight:500}
+
+/* ── badges ── */
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.badge-green{background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e}
+.badge-red{background:#2b0d0d;color:#f87171;border:1px solid #4d1a1a}
+.badge-yellow{background:#2b2200;color:#fbbf24;border:1px solid #4d3800}
+.badge-blue{background:#0a1f2e;color:#38bdf8;border:1px solid #0e3248}
+.badge-purple{background:#1a0d2b;color:#a78bfa;border:1px solid #2e1a4d}
+.badge-gray{background:#1a1a1a;color:#888;border:1px solid #2a2a2a}
+.badge-orange{background:#2b1400;color:#f97316;border:1px solid #4d2800}
+
+/* ── stat strip ── */
+.stat-strip{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:0}
+.stat-card{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:14px 18px;min-width:120px;flex:1}
+.stat-num{font-size:24px;font-weight:700;color:#fff;letter-spacing:-.02em;line-height:1}
+.stat-lbl{font-size:11px;color:#555;margin-top:4px}
+.stat-sub{font-size:10px;color:#333;margin-top:2px}
+
+/* ── pipeline section ── */
+.pipeline-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+
+/* ── run button ── */
+.run-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;font-weight:500;border-radius:7px;border:1px solid #1a4d2e;background:#0d2b1a;color:#4ade80;cursor:pointer;transition:background .12s,border-color .12s}
+.run-btn:hover{background:#122e1e;border-color:#2a6040}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+.run-btn .spinner{width:12px;height:12px;border:2px solid #4ade8040;border-top-color:#4ade80;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.run-btn.running .spinner{display:block}
+.run-btn.running .btn-text::after{content:'...'}
+.response-box{margin-top:10px;padding:12px 14px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:7px;display:none}
+.response-box.visible{display:block}
+.response-box.error-resp{border-color:#4d1a1a}
+
+/* ── counts section ── */
+.counts-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:640px){.counts-layout{grid-template-columns:1fr}}
+.count-group{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px 18px}
+.count-group-title{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444;margin-bottom:12px}
+.count-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #161616}
+.count-row:last-child{border-bottom:none}
+.count-row-label{font-size:12px;color:#888;display:flex;align-items:center;gap:7px}
+.count-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.count-row-num{font-size:13px;font-weight:600;color:#e5e5e5}
+.count-bar-bg{height:2px;background:#1a1a1a;border-radius:1px;margin-top:3px}
+.count-bar-fill{height:2px;border-radius:1px;transition:width .3s}
+
+/* ── activity table ── */
+.activity-table{width:100%;border-collapse:collapse}
+.activity-table th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444;padding:0 12px 10px;text-align:left;border-bottom:1px solid #1e1e1e}
+.activity-table td{padding:10px 12px;font-size:12px;color:#aaa;border-bottom:1px solid #161616;vertical-align:top}
+.activity-table tr:last-child td{border-bottom:none}
+.activity-table tr:hover td{background:#111;color:#ccc}
+.sig-id{font-family:ui-monospace,monospace;font-size:10px;color:#555}
+.purpose-cell{color:#ccc;max-width:320px}
+
+/* ── test controls ── */
+.controls-layout{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px}
+.control-group{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:220px}
+.control-group-title{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#444}
+select.source-select{background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;color:#e5e5e5;font-size:13px;padding:7px 10px;cursor:pointer;outline:none;width:100%}
+select.source-select:focus{border-color:#444}
+.danger-btn{padding:8px 14px;font-size:12px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#2b0d0d;color:#f87171;cursor:pointer;transition:background .12s}
+.danger-btn:hover{background:#3d1010}
+.danger-btn:disabled{opacity:.4;cursor:not-allowed}
+.action-btn{padding:8px 14px;font-size:12px;font-weight:500;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#ccc;cursor:pointer;transition:background .12s}
+.action-btn:hover{background:#222;color:#fff}
+.action-btn:disabled{opacity:.4;cursor:not-allowed}
+.controls-response{margin-top:8px;font-size:11px;font-family:ui-monospace,monospace;color:#888;padding:8px 10px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
+.controls-response.visible{display:block}
+.controls-response.ok{border-color:#1a4d2e;color:#4ade80}
+.controls-response.err{border-color:#4d1a1a;color:#f87171}
+
+/* ── ingest button (per connection card) ── */
+.ingest-btn{margin-top:10px;padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .12s,border-color .12s}
+.ingest-btn:hover{color:#fff;border-color:#444}
+.ingest-btn:disabled{opacity:.4;cursor:not-allowed}
+.ingest-btn .spinner{width:10px;height:10px;border:2px solid #88888840;border-top-color:#888;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.ingest-btn.running .spinner{display:block}
+.card-action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.connect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #0e3248;background:#0a1f2e;color:#38bdf8;cursor:pointer;transition:background .12s,border-color .12s}
+.connect-btn:hover{background:#0d2840;border-color:#1a5070}
+.disconnect-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #4d1a1a;background:#1a0808;color:#f87171;cursor:pointer;transition:background .12s}
+.disconnect-btn:hover{background:#2b0d0d}
+.wipe-btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:6px;border:1px solid #7a1a1a;background:#2b0505;color:#fca5a5;cursor:pointer;transition:background .12s}
+.wipe-btn:hover{background:#3d0808}
+.card-ingest-response{margin-top:8px;padding:10px 12px;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;display:none;max-height:340px;overflow-y:auto}
+.card-ingest-response.visible{display:block}
+.card-ingest-response.err{border-color:#4d1a1a}
+
+/* ── result panels ── */
+.result-stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid #141414}
+.result-stat-label{font-size:11px;color:#555}
+.result-stat-value{font-size:12px;font-weight:600;color:#ccc;font-family:ui-monospace,monospace}
+.result-sep{border:none;border-top:1px solid #1e1e1e;margin:8px 0}
+.result-sig-chip{display:inline-block;font-size:9px;font-family:ui-monospace,monospace;color:#555;background:#141414;border:1px solid #1e1e1e;border-radius:3px;padding:1px 5px;margin:2px 2px 0 0}
+.result-error-row{font-size:10px;font-family:ui-monospace,monospace;padding:2px 0;border-bottom:1px solid #141414}
+
+/* ── error box ── */
+.section-error{padding:12px 14px;background:#1a0808;border:1px solid #4d1a1a;border-radius:7px;font-size:12px;color:#f87171;margin-top:4px;display:none}
+.section-error.visible{display:block}
+
+/* ── skeleton / loading ── */
+.loading{color:#333;font-size:12px;padding:12px 0}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── divider ── */
+.divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/src/auth.js"></script>
+</head>
+<body>
+
+<div class="admin-header">
+  <div class="header-left">
+    <span class="header-brand">Lab</span>
+    <a href="/lab" class="tab active">Pipeline</a>
+    <a href="/daat-ingest" class="tab">Ingest</a>
+    <a href="/daat-explorer" class="tab">Explorer</a>
+    <a href="/daat-synthesize" class="tab">Synthesize</a>
+  </div>
+  <div class="header-right">
+    <span class="last-refreshed" id="last-refreshed"></span>
+    <span class="refresh-countdown" id="refresh-countdown"></span>
+    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+    <a href="/ask" style="font-size:12px;font-weight:500;color:#444;text-decoration:none;padding:4px 12px;border:1px solid #1e1e1e;border-radius:5px;transition:color .12s,border-color .12s" onmouseover="this.style.color='#aaa';this.style.borderColor='#333'" onmouseout="this.style.color='#444';this.style.borderColor='#1e1e1e'">→ Daat</a>
+    <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ═══════════════════════ SECTION 1 — CONNECTIONS ═══════════════════════ -->
+  <div class="section">
+    <div class="section-title">Connections</div>
+    <div class="section-error" id="err-connections"></div>
+    <div class="cards-grid" id="connections-grid">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════ SECTION 2 — PIPELINE STATUS ═══════════════════ -->
+  <div class="section">
+    <div class="section-title">Pipeline Status — Comprehend</div>
+    <div class="section-error" id="err-pipeline"></div>
+    <div class="pipeline-grid" id="pipeline-stats">
+      <div class="loading">Loading…</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:4px">
+      <button class="run-btn" id="run-comprehend-btn" onclick="runComprend()">
+        <div class="spinner"></div>
+        <span class="btn-text">Run Comprehend (limit=10)</span>
+      </button>
+    </div>
+    <div class="response-box" id="comprehend-response"></div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════ SECTION 3 — DATA COUNTS ════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Data Counts</div>
+    <div class="section-error" id="err-counts"></div>
+    <div class="counts-layout" id="counts-layout">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════ SECTION 4 — RECENT ACTIVITY ════════════════════ -->
+  <div class="section">
+    <div class="section-title">Recent Activity — Last 10 Comprehended</div>
+    <div class="section-error" id="err-activity"></div>
+    <div id="activity-container">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════ SECTION 5 — TEST CONTROLS ══════════════════════ -->
+  <div class="section">
+    <div class="section-title">Test Controls</div>
+    <div class="section-error" id="err-controls"></div>
+    <div class="controls-layout">
+
+      <div class="control-group" style="flex:0 0 auto">
+        <div class="control-group-title">Source Filter</div>
+        <select class="source-select" id="source-select">
+          <option value="all">All sources</option>
+          <option value="slack">Slack</option>
+          <option value="notion">Notion</option>
+          <option value="quickbooks">QuickBooks</option>
+          <option value="google">Google</option>
+        </select>
+      </div>
+
+      <div class="control-group" style="flex:1;min-width:260px">
+        <div class="control-group-title">Reset to Pending</div>
+        <div style="font-size:12px;color:#555;line-height:1.5">Deletes comprehensions_output rows and nulls comprehended_at in assembly for the selected source. Signals re-enter the queue.</div>
+        <button class="danger-btn" id="reset-btn" onclick="resetToPending()">Reset selected source to pending</button>
+        <div class="controls-response" id="reset-response"></div>
+      </div>
+
+      <div class="control-group" style="flex:1;min-width:260px">
+        <div class="control-group-title">Run Comprehend (source-filtered)</div>
+        <div style="font-size:12px;color:#555;line-height:1.5">Runs the comprehend function with limit=10. The function processes the full pending queue — source filter is not supported at the function level.</div>
+        <button class="action-btn" id="run-source-btn" onclick="runComprehendSource()">
+          Run comprehend → pending queue (limit=10)
+        </button>
+        <div class="controls-response" id="run-source-response"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+// SB_URL, SB_ANON, FN_URL from /src/auth.js
+let _auth = null;
+let _workspaceId = null;
+let BASE_HEADERS = {};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function esc(s){ return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function relTime(ts){
+  if(!ts) return '—';
+  const diff = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(diff/1000);
+  if(s < 60)  return `${s}s ago`;
+  if(s < 3600) return `${Math.floor(s/60)}m ago`;
+  if(s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function fmtTs(ts){
+  if(!ts) return '—';
+  return new Date(ts).toLocaleString();
+}
+
+function showErr(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearErr(id){
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.remove('visible');
+}
+
+async function sbGet(path, extraHeaders={}){
+  const res = await fetch(`${SB_URL}/rest/v1${path}`, {
+    headers: { ...BASE_HEADERS, ...extraHeaders },
+  });
+  const body = await res.json();
+  if(!res.ok) throw new Error(JSON.stringify(body));
+  return { data: body, headers: res.headers };
+}
+
+async function sbGetCount(path){
+  const res = await fetch(`${SB_URL}/rest/v1${path}`, {
+    headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' },
+  });
+  const cr = res.headers.get('content-range') || '';
+  const match = cr.match(/\/(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+// ── auto-refresh ──────────────────────────────────────────────────────────────
+
+const REFRESH_INTERVAL = 30;
+let countdown = REFRESH_INTERVAL;
+let timer = null;
+
+function startCountdown(){
+  clearInterval(timer);
+  countdown = REFRESH_INTERVAL;
+  timer = setInterval(()=>{
+    countdown--;
+    document.getElementById('refresh-countdown').textContent = `Auto-refresh in ${countdown}s`;
+    if(countdown <= 0){ loadAll(); }
+  }, 1000);
+}
+
+// ── Section 1 — Connections ──────────────────────────────────────────────────
+
+const SOURCES = [
+  { key:'slack',      table:'connections_slack',      nameField:'workspace_name',    subField:'workspace_domain', color:'#38bdf8', ingestFn:'slack-ingest',      oauthFn:'slack-oauth-start'      },
+  { key:'notion',     table:'connections_notion',     nameField:'workspace_name',    subField:'owner_email',      color:'#a78bfa', ingestFn:'notion-ingest',     oauthFn:'notion-oauth-start'     },
+  { key:'quickbooks', table:'connections_quickbooks', nameField:'company_name',      subField:'company_email',    color:'#4ade80', ingestFn:'quickbooks-ingest', oauthFn:'quickbooks-oauth-start' },
+  { key:'google',     table:'connections_google',     nameField:'organization_name', subField:'domain',           color:'#fb923c', ingestFn:'google-ingest',     oauthFn:'google-oauth-start'     },
+];
+
+// Persists ingest result HTML across grid re-renders
+const INGEST_RESULTS = {};
+
+function clearIngestResult(sourceKey) {
+  delete INGEST_RESULTS[sourceKey];
+  const el = document.getElementById(`ingest-resp-${sourceKey}`);
+  if (el) { el.className = 'card-ingest-response'; el.innerHTML = ''; }
+}
+
+async function loadConnections(signalsBySource){
+  clearErr('err-connections');
+  const grid = document.getElementById('connections-grid');
+  try {
+    const rows = await Promise.all(
+      SOURCES.map(s => sbGet(`/${s.table}?owner_id=eq.${_workspaceId}&limit=1`).then(r=>r.data[0]||null))
+    );
+
+    grid.innerHTML = SOURCES.map((s, i) => {
+      const conn = rows[i];
+      const connected = !!conn;
+      const sigs = signalsBySource[s.key] || [];
+      const lastIngest = sigs.length > 0
+        ? sigs.reduce((a,b) => new Date(a.ingested_at) > new Date(b.ingested_at) ? a : b).ingested_at
+        : null;
+
+      return `<div class="card ${connected?'border-green':'border-red'}">
+        <div class="card-head">
+          <div class="card-name" style="color:${s.color}">${esc(s.key.charAt(0).toUpperCase()+s.key.slice(1))}</div>
+          <span class="badge ${connected?'badge-green':'badge-red'}">${connected?'● Connected':'○ Not Connected'}</span>
+        </div>
+        <div class="card-body">
+          ${conn ? `
+          <div class="card-row">
+            <span class="card-label">account</span>
+            <span class="card-value prominent">${esc(conn[s.nameField]||'—')}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">${esc(s.subField.replace(/_/g,' '))}</span>
+            <span class="card-value">${esc(conn[s.subField]||'—')}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">connected</span>
+            <span class="card-value">${fmtTs(conn.connected_at)}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">last synced</span>
+            <span class="card-value">${conn.last_synced_at ? relTime(conn.last_synced_at)+' · '+fmtTs(conn.last_synced_at) : '—'}</span>
+          </div>` : `<div class="card-row"><span class="card-label" style="color:#555">No connection record found</span></div>`}
+          <div class="card-row" style="margin-top:4px;padding-top:8px;border-top:1px solid #1a1a1a">
+            <span class="card-label">last ingested</span>
+            <span class="card-value">${lastIngest ? relTime(lastIngest) : '—'}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">signals</span>
+            <span class="card-value prominent">${sigs.length}</span>
+          </div>
+        </div>
+        <div class="card-action-row">
+          ${connected
+            ? `<button class="ingest-btn" id="ingest-btn-${s.key}" onclick="runIngest('${s.key}','${s.ingestFn}')"><div class="spinner"></div><span>Ingest</span></button>
+               <button class="disconnect-btn" onclick="disconnectSource('${s.key}','${s.table}')">Disconnect</button>
+               <button class="wipe-btn" onclick="disconnectAndWipe('${s.key}','${s.table}')">Disconnect + Wipe</button>`
+            : `<button class="connect-btn" onclick="connectSource('${s.oauthFn}')">Connect</button>`
+          }
+        </div>
+        <div class="card-ingest-response" id="ingest-resp-${s.key}"></div>
+      </div>`;
+    }).join('');
+    // Restore any persisted ingest results after grid rebuild
+    for (const [key, { html, isErr }] of Object.entries(INGEST_RESULTS)) {
+      const el = document.getElementById(`ingest-resp-${key}`);
+      if (el) {
+        el.className = `card-ingest-response visible${isErr ? ' err' : ''}`;
+        el.innerHTML = html;
+      }
+    }
+  } catch(e){
+    grid.innerHTML = '';
+    showErr('err-connections', `Failed to load connections: ${e.message}`);
+  }
+}
+
+function renderIngestResult({ sourceKey, ingested, deleted, errorCount, elapsed, pendingSignals }) {
+  const hasPending = pendingSignals.length > 0;
+  const pendingBadge = hasPending
+    ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e">Ready to comprehend</span>`
+    : `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#1a1a1a;color:#555;border:1px solid #2a2a2a">Nothing pending</span>`;
+  const chips = pendingSignals.slice(0, 24).map(s =>
+    `<span class="result-sig-chip">${esc(s.signal_id.slice(0,8))}…</span>`
+  ).join('');
+  const overflow = pendingSignals.length > 24
+    ? `<span style="font-size:10px;color:#444"> +${pendingSignals.length - 24} more</span>` : '';
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#333">Ingest result</span>
+      <button onclick="clearIngestResult('${sourceKey}')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #2a2a2a;background:#1a1a1a;color:#555;cursor:pointer" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Clear</button>
+    </div>
+    <div class="result-stat-row"><span class="result-stat-label">Signals ingested</span><span class="result-stat-value">${ingested}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Signals deleted (reconciliation)</span><span class="result-stat-value">${deleted}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Errors</span><span class="result-stat-value" style="${errorCount > 0 ? 'color:#f87171' : ''}">${errorCount}</span></div>
+    <div class="result-stat-row" style="border-bottom:none"><span class="result-stat-label">Time taken</span><span class="result-stat-value">${elapsed}s</span></div>
+    <hr class="result-sep">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${hasPending ? '6px' : '0'}">
+      <span class="result-stat-label">Pending in assembly</span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <span class="result-stat-value">${pendingSignals.length}</span>
+        ${pendingBadge}
+      </span>
+    </div>
+    ${hasPending ? `<div style="margin-top:4px">${chips}${overflow}</div>` : ''}
+  `;
+}
+
+async function runIngest(sourceKey, fnName){
+  const btn = document.getElementById(`ingest-btn-${sourceKey}`);
+  btn.disabled = true;
+  btn.classList.add('running');
+
+  // Show panel immediately and start elapsed ticker
+  const showResp = () => document.getElementById(`ingest-resp-${sourceKey}`);
+  const setResp = (html, isErr=false) => {
+    const el = showResp();
+    if (!el) return;
+    el.className = `card-ingest-response visible${isErr ? ' err' : ''}`;
+    el.innerHTML = html;
+  };
+
+  const t0 = Date.now();
+  setResp('<span style="font-size:11px;color:#555">Ingesting… (0s elapsed)</span>');
+
+  const ticker = setInterval(() => {
+    const secs = Math.floor((Date.now() - t0) / 1000);
+    setResp(`<span style="font-size:11px;color:#555">Ingesting… (${secs}s elapsed)</span>`);
+  }, 1000);
+
+  try {
+    const res = await fetch(`${FN_URL}/${fnName}`, { method:'POST', headers: BASE_HEADERS });
+    clearInterval(ticker);
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    const body = await res.json().catch(() => null);
+
+    if (!res.ok || !body) {
+      const errMsg = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      INGEST_RESULTS[sourceKey] = { html: errMsg, isErr: true };
+      setResp(errMsg, true);
+      loadAll();
+      return;
+    }
+
+    const ingested   = body.ingested ?? '—';
+    const deleted    = typeof body.deleted === 'number' ? body.deleted : (body.deleted ?? '—');
+    const errorCount = typeof body.errors === 'number' ? body.errors : (Array.isArray(body.errors) ? body.errors.length : 0);
+
+    let pendingSignals = [];
+    try {
+      const { data } = await sbGet(
+        `/comprehensions_assembly?comprehended_at=is.null` +
+        `&select=signal_id,signals_core!inner(source)` +
+        `&signals_core.source=eq.${sourceKey}`
+      );
+      pendingSignals = data;
+    } catch(e){ /* non-fatal */ }
+
+    const html = renderIngestResult({ sourceKey, ingested, deleted, errorCount, elapsed, pendingSignals });
+    INGEST_RESULTS[sourceKey] = { html, isErr: false };
+    // loadAll rebuilds the grid; loadConnections will re-inject from INGEST_RESULTS
+    loadAll();
+
+  } catch(e) {
+    clearInterval(ticker);
+    const errMsg = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
+    INGEST_RESULTS[sourceKey] = { html: errMsg, isErr: true };
+    setResp(errMsg, true);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+  }
+}
+
+function connectSource(oauthFn){
+  window.location.href = `${FN_URL}/${oauthFn}?workspace_id=${encodeURIComponent(_workspaceId)}`;
+}
+
+async function disconnectSource(sourceKey, table){
+  if(!confirm(`Disconnect ${sourceKey}?\n\nThis deletes the connection record. You will need to reconnect to ingest data from this source.`)) return;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/${table}?owner_id=eq.${_workspaceId}`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      alert(`Disconnect failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    loadAll();
+  } catch(e){
+    alert(`Disconnect failed: ${e.message}`);
+  }
+}
+
+async function disconnectAndWipe(sourceKey, table){
+  if(!confirm(`Disconnect + Wipe ${sourceKey}?\n\nThis will permanently delete:\n  • The connection record\n  • All ${sourceKey} signals in signals_core\n  • All source-specific signal data (cascade)\n  • All comprehensions for those signals (cascade)\n\nThis cannot be undone.`)) return;
+  try {
+    // Delete all signals for this source — cascade deletes source-specific rows and comprehensions
+    const sigRes = await fetch(`${SB_URL}/rest/v1/signals_core?source=eq.${sourceKey}&owner_id=eq.${_workspaceId}`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!sigRes.ok){
+      const body = await sigRes.json().catch(()=>({}));
+      alert(`Wipe failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    // Delete connection record
+    const connRes = await fetch(`${SB_URL}/rest/v1/${table}?owner_id=eq.${_workspaceId}`, {
+      method: 'DELETE',
+      headers: BASE_HEADERS,
+    });
+    if(!connRes.ok){
+      const body = await connRes.json().catch(()=>({}));
+      alert(`Connection delete failed: ${JSON.stringify(body)}`);
+      return;
+    }
+    loadAll();
+  } catch(e){
+    alert(`Disconnect + Wipe failed: ${e.message}`);
+  }
+}
+
+// ── Section 2 — Pipeline Status ───────────────────────────────────────────────
+
+async function loadPipeline(assemblyPending){
+  clearErr('err-pipeline');
+  const statsEl = document.getElementById('pipeline-stats');
+  try {
+    const [outputCountRes, lastRunRes] = await Promise.all([
+      sbGetCount('/comprehensions_output?select=id'),
+      sbGet('/comprehensions_output?select=comprehended_at&order=comprehended_at.desc&limit=1'),
+    ]);
+
+    const totalCompleted = outputCountRes;
+    const lastRun = lastRunRes.data[0]?.comprehended_at || null;
+
+    const now = Date.now();
+    const tenMinMs = 10 * 60 * 1000;
+
+    const pending = assemblyPending.filter(r => {
+      if(!r.assembled_at) return true;                    // no assembled_at → treat as fresh pending
+      return (now - new Date(r.assembled_at).getTime()) < tenMinMs;
+    });
+
+    const stalled = assemblyPending.filter(r => {
+      if(!r.assembled_at) return false;
+      return (now - new Date(r.assembled_at).getTime()) >= tenMinMs;
+    });
+
+    statsEl.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-num">${totalCompleted ?? '—'}</div>
+        <div class="stat-lbl">Completed</div>
+        <div class="stat-sub">rows in comprehensions_output</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${pending.length}</div>
+        <div class="stat-lbl">Pending</div>
+        <div class="stat-sub">assembled_at &lt; 10 min ago or null</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="${stalled.length>0?'color:#fbbf24':''}">${stalled.length}</div>
+        <div class="stat-lbl">Stalled</div>
+        <div class="stat-sub">comprehended_at null, assembled_at &gt; 10 min</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:15px;font-weight:500;color:#aaa">${lastRun ? relTime(lastRun) : '—'}</div>
+        <div class="stat-lbl">Last run</div>
+        <div class="stat-sub">${lastRun ? fmtTs(lastRun) : 'never'}</div>
+      </div>
+    `;
+
+    // show stalled signal IDs if any
+    if(stalled.length > 0){
+      statsEl.innerHTML += `<div style="grid-column:1/-1;background:#111;border:1px solid #4d3800;border-radius:7px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#4d3800;margin-bottom:8px">Stalled signals</div>
+        ${stalled.map(r=>`<div style="font-size:11px;font-family:ui-monospace,monospace;color:#888;padding:2px 0">
+          <span style="color:#555">${esc(r.signal_id)}</span>
+          <span style="color:#4d3800;margin-left:10px">assembled ${relTime(r.assembled_at)}</span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+  } catch(e){
+    statsEl.innerHTML = '';
+    showErr('err-pipeline', `Failed to load pipeline status: ${e.message}`);
+  }
+}
+
+function renderComprehendResultHTML(body, recentRows) {
+  const { succeeded=0, failed=0, skipped=0, errors=[] } = body;
+  const errorList = Array.isArray(errors) ? errors : [];
+  const sourceColors = { slack:'#38bdf8', notion:'#a78bfa', quickbooks:'#4ade80', google:'#fb923c' };
+  return `
+    <div class="result-stat-row"><span class="result-stat-label">Succeeded</span><span class="result-stat-value" style="${succeeded>0?'color:#4ade80':''}">${succeeded}</span></div>
+    <div class="result-stat-row"><span class="result-stat-label">Failed</span><span class="result-stat-value" style="${failed>0?'color:#f87171':''}">${failed}</span></div>
+    <div class="result-stat-row" style="border-bottom:none"><span class="result-stat-label">Skipped</span><span class="result-stat-value">${skipped}</span></div>
+    ${recentRows.length > 0 ? `
+      <hr class="result-sep">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#333;margin-bottom:6px">Just comprehended</div>
+      ${recentRows.map(r => {
+        const src = (Array.isArray(r.signals_core) ? r.signals_core[0] : r.signals_core)?.source || '—';
+        const purpose = r.comprehension?.signal_purpose || '—';
+        const shortId = r.signal_id ? r.signal_id.slice(0,8)+'…' : '—';
+        const color = sourceColors[src] || '#888';
+        return `<div style="display:flex;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px solid #141414">
+          <span style="font-size:10px;color:${color};flex-shrink:0;width:72px">${esc(src)}</span>
+          <span style="font-size:11px;color:#aaa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(purpose)}">${esc(purpose)}</span>
+          <span style="font-size:9px;font-family:ui-monospace,monospace;color:#444;flex-shrink:0">${esc(shortId)}</span>
+        </div>`;
+      }).join('')}
+    ` : ''}
+    ${errorList.length > 0 ? `
+      <hr class="result-sep">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#4d1a1a;margin-bottom:6px">Errors</div>
+      ${errorList.map(e => `<div class="result-error-row">
+        <span style="color:#7a2a2a">${esc(e.reason||'unknown')}</span>
+        ${e.signal_id ? `<span style="color:#444;margin-left:8px;font-size:9px">${esc(e.signal_id.slice(0,8))}…</span>` : ''}
+      </div>`).join('')}
+    ` : ''}
+  `;
+}
+
+async function runComprend(){
+  const btn = document.getElementById('run-comprehend-btn');
+  const box = document.getElementById('comprehend-response');
+  btn.disabled = true;
+  btn.classList.add('running');
+  box.className = 'response-box visible';
+  box.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
+  try {
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
+    const body = await res.json().catch(() => null);
+    if(!res.ok || !body){
+      box.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      box.className = 'response-box visible error-resp';
+      return;
+    }
+    let recentRows = [];
+    if((body.succeeded||0) > 0){
+      try {
+        const { data } = await sbGet(
+          `/comprehensions_output?order=comprehended_at.desc&limit=${body.succeeded}` +
+          `&select=signal_id,comprehension,signals_core!inner(source)`
+        );
+        recentRows = data;
+      } catch(e){ /* non-fatal */ }
+    }
+    box.className = 'response-box visible';
+    box.innerHTML = renderComprehendResultHTML(body, recentRows);
+    loadAll();
+  } catch(e){
+    box.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
+    box.className = 'response-box visible error-resp';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+  }
+}
+
+// ── Section 3 — Data Counts ───────────────────────────────────────────────────
+
+function buildCountGroup(title, rows, colorMap, total){
+  const max = Math.max(...rows.map(r=>r.n), 1);
+  return `<div class="count-group">
+    <div class="count-group-title">${title}</div>
+    ${rows.map(r=>`
+      <div class="count-row">
+        <span class="count-row-label">
+          <span class="count-dot" style="background:${colorMap[r.k]||'#555'}"></span>
+          ${esc(r.k)}
+        </span>
+        <span class="count-row-num">${r.n}</span>
+      </div>
+      <div class="count-bar-bg">
+        <div class="count-bar-fill" style="width:${Math.round(r.n/max*100)}%;background:${colorMap[r.k]||'#555'}"></div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+async function loadCounts(allSignals, assemblyPending){
+  clearErr('err-counts');
+  const layout = document.getElementById('counts-layout');
+  try {
+    const total = allSignals.length;
+
+    const bySource = {};
+    const byArchetype = {};
+    for(const s of allSignals){
+      bySource[s.source] = (bySource[s.source]||0)+1;
+      byArchetype[s.content_archetype] = (byArchetype[s.content_archetype]||0)+1;
+    }
+
+    const completedCount = await sbGetCount('/comprehensions_output?select=id');
+
+    const sourceColors = { slack:'#38bdf8', notion:'#a78bfa', quickbooks:'#4ade80', google:'#fb923c' };
+    const archColors   = { conversational:'#38bdf8', documentation:'#a78bfa', financial:'#4ade80', access:'#fb923c' };
+
+    const sourceRows = Object.entries(bySource).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n);
+    const archRows   = Object.entries(byArchetype).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n);
+
+    const now = Date.now();
+    const tenMinMs = 10*60*1000;
+    const pendingCount = assemblyPending.filter(r=>!r.assembled_at||(now-new Date(r.assembled_at).getTime())<tenMinMs).length;
+    const stalledCount = assemblyPending.filter(r=>r.assembled_at&&(now-new Date(r.assembled_at).getTime())>=tenMinMs).length;
+
+    layout.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="count-group">
+          <div class="count-group-title">Overview</div>
+          <div class="count-row"><span class="count-row-label">Total signals</span><span class="count-row-num">${total}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:100%;background:#2a2a2a"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#4ade80"></span>Comprehended</span><span class="count-row-num">${completedCount??'—'}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round((completedCount||0)/total*100):0}%;background:#4ade80"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#38bdf8"></span>Pending</span><span class="count-row-num">${pendingCount}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round(pendingCount/total*100):0}%;background:#38bdf8"></div></div>
+          <div class="count-row"><span class="count-row-label"><span class="count-dot" style="background:#fbbf24"></span>Stalled</span><span class="count-row-num">${stalledCount}</span></div>
+          <div class="count-bar-bg"><div class="count-bar-fill" style="width:${total?Math.round(stalledCount/total*100):0}%;background:#fbbf24"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${buildCountGroup('By Source', sourceRows, sourceColors, total)}
+        ${buildCountGroup('By Content Archetype', archRows, archColors, total)}
+      </div>
+    `;
+  } catch(e){
+    layout.innerHTML = '';
+    showErr('err-counts', `Failed to load counts: ${e.message}`);
+  }
+}
+
+// ── Section 4 — Recent Activity ───────────────────────────────────────────────
+
+const SOURCE_BADGE = {
+  slack:      '<span class="badge badge-blue">slack</span>',
+  notion:     '<span class="badge badge-purple">notion</span>',
+  quickbooks: '<span class="badge badge-green">quickbooks</span>',
+  google:     '<span class="badge badge-orange">google</span>',
+};
+
+async function loadActivity(){
+  clearErr('err-activity');
+  const container = document.getElementById('activity-container');
+  try {
+    const { data } = await sbGet(
+      '/comprehensions_output' +
+      '?select=signal_id,comprehended_at,comprehension,signals_core!inner(source)' +
+      '&order=comprehended_at.desc&limit=10'
+    );
+
+    if(data.length === 0){
+      container.innerHTML = '<div class="loading">No comprehensions yet.</div>';
+      return;
+    }
+
+    container.innerHTML = `<table class="activity-table">
+      <thead><tr>
+        <th>Signal ID</th>
+        <th>Source</th>
+        <th>Signal Purpose</th>
+        <th>Comprehended</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(row => {
+          const src = row.signals_core?.source || '—';
+          const purpose = row.comprehension?.signal_purpose || '—';
+          const shortId = row.signal_id ? row.signal_id.slice(0,8)+'…' : '—';
+          return `<tr>
+            <td><span class="sig-id" title="${esc(row.signal_id)}">${esc(shortId)}</span></td>
+            <td>${SOURCE_BADGE[src]||esc(src)}</td>
+            <td><span class="purpose-cell">${esc(purpose)}</span></td>
+            <td style="white-space:nowrap;color:#555">${relTime(row.comprehended_at)}<br><span style="font-size:10px;color:#333">${fmtTs(row.comprehended_at)}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  } catch(e){
+    container.innerHTML = '';
+    showErr('err-activity', `Failed to load recent activity: ${e.message}`);
+  }
+}
+
+// ── Section 5 — Test Controls ────────────────────────────────────────────────
+
+async function resetToPending(){
+  const src = document.getElementById('source-select').value;
+  const label = src === 'all' ? 'ALL sources' : src;
+  if(!confirm(`Reset comprehensions for ${label} back to pending?\n\nThis deletes their comprehensions_output rows and nulls comprehended_at in comprehensions_assembly. They will re-enter the queue on next comprehend run.`)) return;
+
+  const btn = document.getElementById('reset-btn');
+  const resp = document.getElementById('reset-response');
+  btn.disabled = true;
+  resp.className = 'controls-response visible';
+  resp.textContent = 'Working…';
+
+  try {
+    // 1. Get signal IDs for selected source
+    const sourceFilter = src === 'all' ? '' : `?source=eq.${src}`;
+    const { data: signals } = await sbGet(`/signals_core${sourceFilter}&select=id`);
+    const ids = signals.map(s=>s.id);
+
+    if(ids.length === 0){
+      resp.textContent = 'No signals found for selected source.';
+      resp.className = 'controls-response visible';
+      btn.disabled = false;
+      return;
+    }
+
+    const idList = ids.join(',');
+
+    // 2. Delete comprehensions_output rows
+    const delRes = await fetch(
+      `${SB_URL}/rest/v1/comprehensions_output?signal_id=in.(${idList})`,
+      { method:'DELETE', headers: BASE_HEADERS }
+    );
+    if(!delRes.ok){
+      const body = await delRes.json().catch(()=>({}));
+      throw new Error(`DELETE failed: ${JSON.stringify(body)}`);
+    }
+
+    // 3. Null out comprehended_at in comprehensions_assembly
+    const patchRes = await fetch(
+      `${SB_URL}/rest/v1/comprehensions_assembly?signal_id=in.(${idList})`,
+      {
+        method: 'PATCH',
+        headers: BASE_HEADERS,
+        body: JSON.stringify({ comprehended_at: null }),
+      }
+    );
+    if(!patchRes.ok){
+      const body = await patchRes.json().catch(()=>({}));
+      throw new Error(`PATCH failed: ${JSON.stringify(body)}`);
+    }
+
+    resp.textContent = `Done. Reset ${ids.length} signal(s) for source: ${label}. They will be re-processed on the next comprehend run.`;
+    resp.className = 'controls-response visible ok';
+    loadAll();
+  } catch(e){
+    resp.textContent = `Error: ${e.message}`;
+    resp.className = 'controls-response visible err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runComprehendSource(){
+  const btn = document.getElementById('run-source-btn');
+  const resp = document.getElementById('run-source-response');
+  btn.disabled = true;
+  resp.className = 'controls-response visible';
+  resp.innerHTML = '<span style="font-size:11px;color:#555">Running…</span>';
+  try {
+    const res = await fetch(`${FN_URL}/comprehend?limit=10`, { method:'POST', headers: BASE_HEADERS });
+    const body = await res.json().catch(() => null);
+    if(!res.ok || !body){
+      resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(body ? JSON.stringify(body) : 'Request failed')}</span>`;
+      resp.className = 'controls-response visible err';
+      return;
+    }
+    let recentRows = [];
+    if((body.succeeded||0) > 0){
+      try {
+        const { data } = await sbGet(
+          `/comprehensions_output?order=comprehended_at.desc&limit=${body.succeeded}` +
+          `&select=signal_id,comprehension,signals_core!inner(source)`
+        );
+        recentRows = data;
+      } catch(e){ /* non-fatal */ }
+    }
+    resp.className = 'controls-response visible';
+    resp.innerHTML = renderComprehendResultHTML(body, recentRows);
+    loadAll();
+  } catch(e){
+    resp.innerHTML = `<span style="font-size:11px;color:#f87171">Error: ${esc(e.message)}</span>`;
+    resp.className = 'controls-response visible err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── main load ────────────────────────────────────────────────────────────────
+
+async function loadAll(){
+  startCountdown();
+  document.getElementById('last-refreshed').textContent = `Refreshed ${new Date().toLocaleTimeString()}`;
+
+  // shared fetches used by multiple sections
+  let allSignals = [];
+  let assemblyPending = [];
+  let signalsBySource = {};
+
+  try {
+    const [signalsRes, assemblyRes] = await Promise.all([
+      sbGet('/signals_core?select=id,source,content_archetype,ingested_at&order=ingested_at.desc'),
+      sbGet('/comprehensions_assembly?comprehended_at=is.null&select=id,signal_id,assembled_at'),
+    ]);
+    allSignals = signalsRes.data;
+    assemblyPending = assemblyRes.data;
+    for(const s of allSignals){
+      if(!signalsBySource[s.source]) signalsBySource[s.source] = [];
+      signalsBySource[s.source].push(s);
+    }
+  } catch(e){
+    // non-fatal — sections will show their own errors
+    console.error('Core fetch failed:', e);
+  }
+
+  // run all sections in parallel
+  await Promise.all([
+    loadConnections(signalsBySource),
+    loadPipeline(assemblyPending),
+    loadCounts(allSignals, assemblyPending),
+    loadActivity(),
+  ]);
+}
+
+async function init() {
+  _auth = await daatGetAuth();
+  if (!_auth) return;
+  _workspaceId = _auth.workspaceId;
+  BASE_HEADERS = {
+    'apikey': SB_ANON,
+    'Authorization': `Bearer ${_auth.token}`,
+    'Content-Type': 'application/json',
+  };
+  loadAll();
+}
+init();
+</script>
+</body>
+</html>

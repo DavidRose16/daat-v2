@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — DAAT</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+
+.card{width:100%;max-width:360px;padding:36px 32px;background:#111;border:1px solid #1e1e1e;border-radius:12px}
+
+.brand{font-size:13px;font-weight:700;letter-spacing:.08em;color:#555;text-transform:uppercase;margin-bottom:28px}
+
+.heading{font-size:20px;font-weight:600;color:#e5e5e5;margin-bottom:6px}
+.subheading{font-size:13px;color:#555;margin-bottom:28px;line-height:1.5}
+
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0}
+.divider-line{flex:1;height:1px;background:#1e1e1e}
+.divider-text{font-size:11px;color:#444}
+
+.google-btn{
+  width:100%;padding:10px 16px;border-radius:8px;
+  border:1px solid #2a2a2a;background:#1a1a1a;
+  color:#e5e5e5;font-size:13px;font-weight:500;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:background .12s,border-color .12s;
+}
+.google-btn:hover{background:#222;border-color:#3a3a3a}
+.google-btn:disabled{opacity:.4;cursor:not-allowed}
+.google-icon{width:16px;height:16px;flex-shrink:0}
+
+.email-form{display:flex;flex-direction:column;gap:10px}
+.email-input{
+  width:100%;background:#0c0c0c;border:1px solid #2a2a2a;
+  border-radius:8px;padding:10px 14px;font-size:13px;
+  color:#e5e5e5;outline:none;transition:border-color .15s;
+}
+.email-input:focus{border-color:#3a3a3a}
+.email-input::placeholder{color:#444}
+
+.magic-btn{
+  width:100%;padding:10px 16px;border-radius:8px;
+  border:1px solid #2a2a2a;background:#141414;
+  color:#ccc;font-size:13px;font-weight:500;
+  cursor:pointer;transition:background .12s,border-color .12s;
+}
+.magic-btn:hover{background:#1c1c1c;border-color:#3a3a3a}
+.magic-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.msg{font-size:12px;padding:10px 14px;border-radius:7px;margin-top:4px;line-height:1.5;display:none}
+.msg.ok{display:block;background:#0d2b1a;color:#4ade80;border:1px solid #1a4d2e}
+.msg.err{display:block;background:#1a0808;color:#f87171;border:1px solid #4d1a1a}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">DAAT</div>
+  <div class="heading">Sign in</div>
+  <div class="subheading">Your organizational intelligence workspace.</div>
+
+  <button class="google-btn" id="googleBtn">
+    <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Continue with Google
+  </button>
+
+  <div class="divider">
+    <div class="divider-line"></div>
+    <div class="divider-text">or</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <form class="email-form" id="emailForm">
+    <input class="email-input" id="emailInput" type="email" placeholder="your@email.com" autocomplete="email" required>
+    <button class="magic-btn" type="submit" id="magicBtn">Send magic link</button>
+  </form>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
+
+const sb = window.supabase.createClient(SB_URL, SB_ANON);
+
+function getNext() {
+  const p = new URLSearchParams(window.location.search);
+  const n = p.get('next');
+  return n && n.startsWith('/') ? n : '/';
+}
+
+function showMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = `msg ${type}`;
+}
+
+// If a session already exists or is established by OAuth callback, redirect immediately.
+sb.auth.onAuthStateChange((_event, session) => {
+  if (session) window.location.href = getNext();
+});
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) window.location.href = getNext();
+})();
+
+document.getElementById('googleBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('googleBtn');
+  btn.disabled = true;
+  try {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + getNext() },
+    });
+    if (error) throw error;
+  } catch (e) {
+    showMsg(e.message, 'err');
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('emailForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('emailInput').value.trim();
+  const btn   = document.getElementById('magicBtn');
+  btn.disabled = true;
+  try {
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + getNext() },
+    });
+    if (error) throw error;
+    showMsg('Magic link sent — check your email.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

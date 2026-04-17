@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ask DAAT</title>
+<title>Ask — Daat</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -14,7 +14,6 @@
     --text: #e2e2e2;
     --text-dim: #888;
     --text-dimmer: #555;
-    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --amber: #f59e0b;
     --amber-bg: #140f00;
@@ -24,11 +23,12 @@
   html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
 
   /* Nav */
-  .tab-bar { display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 16px; position: sticky; top: 0; z-index: 50; }
-  .brand { font-size: 12px; font-weight: 600; color: #555; letter-spacing: .06em; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 0; }
-  .tab { font-size: 12px; font-weight: 500; padding: 12px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; display: inline-block; }
-  .tab:hover { color: var(--text-dim); }
-  .tab.active { color: var(--text); border-bottom-color: #555; }
+  .nav { display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 20px; position: sticky; top: 0; z-index: 50; }
+  .nav-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); padding: 12px 20px 12px 0; border-right: 1px solid var(--border); margin-right: 4px; flex-shrink: 0; }
+  .nav-tab { font-size: 12px; font-weight: 500; padding: 14px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; }
+  .nav-tab:hover { color: var(--text-dim); }
+  .nav-tab.active { color: var(--text); border-bottom-color: #555; }
+  .nav-spacer { flex: 1; }
 
   /* Page */
   .page { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
@@ -38,14 +38,14 @@
   .form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 8px; display: block; }
   .form-label .label-hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-dimmer); }
 
-  /* Intent segmented control */
+  /* Intent control */
   .intent-group { display: flex; border: 1px solid var(--border2); border-radius: 7px; overflow: hidden; width: fit-content; }
   .intent-btn { font-size: 12px; font-weight: 500; padding: 7px 18px; background: transparent; color: var(--text-dimmer); border: none; cursor: pointer; transition: background .12s, color .12s; white-space: nowrap; line-height: 1; }
   .intent-btn + .intent-btn { border-left: 1px solid var(--border2); }
   .intent-btn:hover { color: var(--text); background: #161616; }
   .intent-btn.selected { background: #1e1e1e; color: var(--text); }
 
-  /* Task input */
+  /* Task */
   .task-input {
     width: 100%; background: #0c0c0c; border: 1px solid var(--border2);
     border-radius: 8px; padding: 12px 14px; font-size: 14px;
@@ -77,7 +77,7 @@
   .ask-btn.running .ask-spinner { display: block; }
   .ask-btn.running .ask-label { display: none; }
 
-  /* Result divider */
+  /* Divider */
   .result-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; display: none; }
   .result-divider.visible { display: block; }
 
@@ -121,10 +121,9 @@
   .error-box { background: #140808; border: 1px solid #3a1a1a; border-radius: 8px; padding: 14px 18px; color: #f87171; font-size: 13px; line-height: 1.6; display: none; }
   .error-box.visible { display: block; }
 
-  /* Connect-first prompt */
+  /* Connect prompt */
   .connect-prompt { display: none; text-align: center; padding: 64px 24px; }
   .connect-prompt.visible { display: block; }
-  .connect-prompt-icon { font-size: 32px; margin-bottom: 20px; opacity: .4; }
   .connect-prompt-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
   .connect-prompt-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin-bottom: 28px; max-width: 380px; margin-left: auto; margin-right: auto; }
   .connect-prompt-link { display: inline-block; padding: 9px 22px; background: #141414; border: 1px solid var(--border2); border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; transition: background .12s, border-color .12s; }
@@ -132,7 +131,6 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
   ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -140,55 +138,53 @@
 </head>
 <body>
 
-<div class="tab-bar">
-  <span class="brand">DAAT v2</span>
-  <a href="/" class="tab">Admin</a>
-  <a href="/daat-ingest" class="tab">Ingest</a>
-  <a href="/daat-explorer" class="tab">Explorer</a>
-  <a href="/daat-synthesize" class="tab">Synthesize</a>
-  <a href="/daat-ask" class="tab active">Ask</a>
+<div class="nav">
+  <span class="nav-brand">Daat</span>
+  <a href="/ask"     class="nav-tab active">Ask</a>
+  <a href="/connect" class="nav-tab">Connect</a>
+  <span class="nav-spacer"></span>
   <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
 </div>
 
 <div class="page">
 
   <div class="connect-prompt" id="connectPrompt">
-    <div class="connect-prompt-icon">⬡</div>
-    <div class="connect-prompt-title">No sources connected</div>
-    <p class="connect-prompt-body">Connect at least one source — Slack, Notion, QuickBooks, or Google Workspace — before asking DAAT a question.</p>
-    <a href="/" class="connect-prompt-link">Go to Admin to connect</a>
+    <div class="connect-prompt-title">No sources connected yet</div>
+    <p class="connect-prompt-body">Connect at least one source to start asking questions. Daat needs data to work with.</p>
+    <a href="/connect" class="connect-prompt-link">Connect sources →</a>
   </div>
 
   <div id="askForm">
-  <div class="form-section">
-    <label class="form-label">Intent</label>
-    <div class="intent-group" id="intentGroup">
-      <button class="intent-btn selected" data-intent="inform">Inform</button>
-      <button class="intent-btn" data-intent="decide">Decide</button>
-      <button class="intent-btn" data-intent="diagnose">Diagnose</button>
-      <button class="intent-btn" data-intent="plan">Plan</button>
+
+    <div class="form-section">
+      <label class="form-label">Intent</label>
+      <div class="intent-group" id="intentGroup">
+        <button class="intent-btn selected" data-intent="inform">Inform</button>
+        <button class="intent-btn" data-intent="decide">Decide</button>
+        <button class="intent-btn" data-intent="diagnose">Diagnose</button>
+        <button class="intent-btn" data-intent="plan">Plan</button>
+      </div>
     </div>
-  </div>
 
-  <div class="form-section">
-    <label class="form-label" for="taskInput">Task</label>
-    <textarea class="task-input" id="taskInput" placeholder="Describe what you're trying to understand or do…"></textarea>
-  </div>
+    <div class="form-section">
+      <label class="form-label" for="taskInput">What are you trying to understand?</label>
+      <textarea class="task-input" id="taskInput" placeholder="Describe what you need to know or decide…"></textarea>
+    </div>
 
-  <div class="form-section">
-    <label class="form-label" for="entitiesInput">Entities <span class="label-hint">— optional</span></label>
-    <input class="entities-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
-  </div>
+    <div class="form-section">
+      <label class="form-label" for="entitiesInput">People, topics, or systems involved <span class="label-hint">— optional</span></label>
+      <input class="entities-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
+    </div>
 
-  <button class="ask-btn" id="askBtn">
-    <span class="ask-label">Ask</span>
-    <span class="ask-spinner"></span>
-  </button>
+    <button class="ask-btn" id="askBtn">
+      <span class="ask-label">Ask</span>
+      <span class="ask-spinner"></span>
+    </button>
+
+  </div><!-- #askForm -->
 
   <hr class="result-divider" id="resultDivider">
   <div class="error-box" id="errorBox"></div>
-
-  </div><!-- #askForm -->
 
   <div id="resultArea" style="display:none">
     <p class="summary-text" id="summaryText"></p>
@@ -209,9 +205,6 @@
 </div>
 
 <script>
-// Redirect legacy bookmarks to the product URL
-if (window.location.pathname === '/daat-ask') window.location.replace('/ask');
-// FN_URL, SB_ANON from /src/auth.js
 let _auth = null;
 let selectedIntent = 'inform';
 
@@ -219,11 +212,11 @@ async function init() {
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Check if any source is connected for this workspace
+  // Connect-first check
   const connTables = ['connections_slack','connections_notion','connections_quickbooks','connections_google'];
-  const checks = await Promise.all(connTables.map(t =>
-    _auth.sb.from(t).select('id', { count: 'exact', head: true }).eq('owner_id', _auth.workspaceId)
-  ));
+  const checks = await Promise.all(
+    connTables.map(t => _auth.sb.from(t).select('id', { count: 'exact', head: true }).eq('owner_id', _auth.workspaceId))
+  );
   const hasConnections = checks.some(r => (r.count ?? 0) > 0);
   if (!hasConnections) {
     document.getElementById('connectPrompt').classList.add('visible');
@@ -250,8 +243,8 @@ async function ask() {
   const task = document.getElementById('taskInput').value.trim();
   if (!task) return;
 
-  const entitiesRaw = document.getElementById('entitiesInput').value;
-  const entities = entitiesRaw.split(',').map(s => s.trim()).filter(Boolean);
+  const entities = document.getElementById('entitiesInput').value
+    .split(',').map(s => s.trim()).filter(Boolean);
 
   const btn       = document.getElementById('askBtn');
   const errorBox  = document.getElementById('errorBox');
@@ -307,12 +300,12 @@ function renderResult(d) {
   inner.innerHTML = '';
 
   const sections = [
-    { key: 'decisions',     label: 'Decisions',     list: true  },
-    { key: 'people',        label: 'People',         list: true  },
-    { key: 'workflows',     label: 'Workflows',      list: true  },
-    { key: 'problems',      label: 'Problems',       list: true  },
-    { key: 'tacit_context', label: 'Tacit context',  list: false },
-    { key: 'uncertainty',   label: 'Uncertainty',    list: false },
+    { key: 'decisions',     label: 'Decisions',    list: true  },
+    { key: 'people',        label: 'People',        list: true  },
+    { key: 'workflows',     label: 'Workflows',     list: true  },
+    { key: 'problems',      label: 'Problems',      list: true  },
+    { key: 'tacit_context', label: 'Tacit context', list: false },
+    { key: 'uncertainty',   label: 'Uncertainty',   list: false },
   ];
 
   let hasContent = false;

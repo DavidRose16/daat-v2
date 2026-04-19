@@ -1,5 +1,5 @@
 // Shared auth utilities — loaded as a synchronous script before each page script.
-// Defines globals: SB_URL, SB_ANON, FN_URL, daatGetAuth(), daatSignOut()
+// Defines globals: SB_URL, SB_ANON, FN_URL, daatGetAuth(), daatSignOut(), daatSetOnboardingState()
 // Also injects .daat-signout button styles.
 
 const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
@@ -14,7 +14,7 @@ function _getClient() {
 }
 
 // Call at the start of every protected page.
-// Returns { session, token, workspaceId, sb } or redirects to /login and returns null.
+// Returns { session, token, workspaceId, onboardingState, sb } or redirects to /login and returns null.
 async function daatGetAuth() {
   const sb = _getClient();
   const { data: { session } } = await sb.auth.getSession();
@@ -27,7 +27,7 @@ async function daatGetAuth() {
 
   const { data: profile, error } = await sb
     .from('profiles')
-    .select('workspace_id')
+    .select('workspace_id, workspaces(onboarding_state)')
     .eq('user_id', session.user.id)
     .single();
 
@@ -41,8 +41,20 @@ async function daatGetAuth() {
     session,
     token: session.access_token,
     workspaceId: profile.workspace_id,
+    onboardingState: profile.workspaces?.onboarding_state || 'welcome',
     sb,
   };
+}
+
+// Advance (or reset) the workspace onboarding state. Pass one of:
+// 'welcome' | 'connect' | 'processing' | 'ready'
+async function daatSetOnboardingState(auth, state) {
+  const { error } = await auth.sb
+    .from('workspaces')
+    .update({ onboarding_state: state })
+    .eq('id', auth.workspaceId);
+  if (error) throw error;
+  auth.onboardingState = state;
 }
 
 function daatSignOut() {

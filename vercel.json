@@ -1,6 +1,8 @@
 {
   "cleanUrls": true,
   "redirects": [
-    { "source": "/daat-ask", "destination": "/ask", "permanent": true }
+    { "source": "/daat-ask", "destination": "/ask", "permanent": true },
+    { "source": "/ingest",   "destination": "/processing", "permanent": true },
+    { "source": "/build",    "destination": "/processing", "permanent": true }
   ]
 }

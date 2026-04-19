@@ -171,6 +171,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   const sbHeaders = {
     "Content-Type": "application/json",
@@ -178,10 +179,33 @@ Deno.serve(async (req) => {
     apikey: supabaseServiceKey,
   };
 
+  // Verify JWT and resolve workspace
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: supabaseAnonKey },
+  });
+  if (!userRes.ok) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+  const { id: userId } = await userRes.json();
+  const profileRes = await fetch(
+    `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=workspace_id&limit=1`,
+    { headers: sbHeaders },
+  );
+  const [profile] = await profileRes.json();
+  const ownerWorkspaceId: string | undefined = profile?.workspace_id;
+  if (!ownerWorkspaceId) {
+    return new Response(JSON.stringify({ error: "Workspace not found" }), {
+      status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     // 1. Read connection
     const connRes = await fetch(
-      `${supabaseUrl}/rest/v1/connections_notion?owner_id=eq.default&limit=1`,
+      `${supabaseUrl}/rest/v1/connections_notion?owner_id=eq.${ownerWorkspaceId}&limit=1`,
       { headers: sbHeaders },
     );
     if (!connRes.ok) throw new Error("Failed to read Notion connection");
@@ -194,7 +218,7 @@ Deno.serve(async (req) => {
     }
 
     const accessToken: string = conn.access_token;
-    const workspaceId: string | null = conn.workspace_id ?? null;
+    const notionWorkspaceId: string | null = conn.workspace_id ?? null;
 
     const notionHeaders = {
       "Content-Type": "application/json",
@@ -234,11 +258,11 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: sbHeaders,
         body: JSON.stringify({
-          p_owner_id:              "default",
+          p_owner_id:              ownerWorkspaceId,
           p_source_record_id:      page.id,
           p_raw_content:           rawContent,
           p_parent_page_id:        ctx.parentPageId,
-          p_workspace_id:          workspaceId,
+          p_workspace_id:          notionWorkspaceId,
           p_page_type:             page.parent.type,
           p_page_icon:             pageIcon,
           p_has_cover:             hasCover,
@@ -338,7 +362,7 @@ Deno.serve(async (req) => {
       headers: sbHeaders,
       body: JSON.stringify({
         p_source:   "notion",
-        p_owner_id: "default",
+        p_owner_id: ownerWorkspaceId,
         p_seen_ids: Array.from(seenIds),
       }),
     });

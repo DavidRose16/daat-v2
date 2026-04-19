@@ -35,6 +35,8 @@ const SUPABASE_ANON_KEY =
   process.env.VITE_SUPABASE_ANON_KEY ||
   process.env.SUPABASE_ANON_KEY;
 
+const WORKSPACE_ID = process.env.DAAT_WORKSPACE_ID;
+
 // ============================================================
 // Server setup
 // ============================================================
@@ -74,7 +76,7 @@ server.tool(
       response = await fetch(SYNTHESIZE_URL, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ task, entities }),
+        body: JSON.stringify({ task, entities, ...(WORKSPACE_ID ? { workspace_id: WORKSPACE_ID } : {}) }),
       });
     } catch (err) {
       return {

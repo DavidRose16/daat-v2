@@ -9,6 +9,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID")!;
   const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
@@ -18,10 +19,33 @@ Deno.serve(async (req) => {
     apikey: supabaseServiceKey,
   };
 
+  // Verify JWT and resolve workspace
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: supabaseAnonKey },
+  });
+  if (!userRes.ok) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+  const { id: userId } = await userRes.json();
+  const profileRes = await fetch(
+    `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=workspace_id&limit=1`,
+    { headers: sbHeaders },
+  );
+  const [profile] = await profileRes.json();
+  const workspaceId: string | undefined = profile?.workspace_id;
+  if (!workspaceId) {
+    return new Response(JSON.stringify({ error: "Workspace not found" }), {
+      status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     // 1. Read connection
     const connRes = await fetch(
-      `${supabaseUrl}/rest/v1/connections_google?owner_id=eq.default&limit=1`,
+      `${supabaseUrl}/rest/v1/connections_google?owner_id=eq.${workspaceId}&limit=1`,
       { headers: sbHeaders },
     );
     if (!connRes.ok) throw new Error("Failed to read Google connection");
@@ -57,7 +81,7 @@ Deno.serve(async (req) => {
         Date.now() + refreshData.expires_in * 1000,
       ).toISOString();
       await fetch(
-        `${supabaseUrl}/rest/v1/connections_google?owner_id=eq.default`,
+        `${supabaseUrl}/rest/v1/connections_google?owner_id=eq.${workspaceId}`,
         {
           method: "PATCH",
           headers: sbHeaders,
@@ -146,7 +170,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: sbHeaders,
           body: JSON.stringify({
-            p_owner_id: "default",
+            p_owner_id: workspaceId,
             p_source_record_id: clientId,
             p_raw_content: rawContent,
             p_app_id: clientId,
@@ -172,7 +196,7 @@ Deno.serve(async (req) => {
         headers: sbHeaders,
         body: JSON.stringify({
           p_source: "google",
-          p_owner_id: "default",
+          p_owner_id: workspaceId,
           p_seen_ids: Array.from(seenIds),
         }),
       },

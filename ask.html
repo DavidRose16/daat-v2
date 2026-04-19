@@ -198,24 +198,13 @@ async function init() {
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Workspace-ready check: Ask is only meaningful once comprehensions exist.
-  const { count: comprehensionsCount } = await _auth.sb
-    .from('comprehensions_output')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', _auth.workspaceId);
-
-  if ((comprehensionsCount ?? 0) === 0) {
-    // Route to the correct onboarding stage based on current state.
-    const { count: signalsCount } = await _auth.sb
-      .from('signals_core')
-      .select('id', { count: 'exact', head: true })
-      .eq('owner_id', _auth.workspaceId);
-
-    if ((signalsCount ?? 0) > 0) {
-      window.location.replace('/build');
-      return;
-    }
-    window.location.replace('/welcome');
+  // Gate by explicit onboarding state. Only 'ready' users belong on /ask.
+  if (_auth.onboardingState !== 'ready') {
+    const dest =
+      _auth.onboardingState === 'processing' ? '/processing' :
+      _auth.onboardingState === 'connect'    ? '/connect' :
+                                               '/welcome';
+    window.location.replace(dest);
     return;
   }
 

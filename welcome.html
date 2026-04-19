@@ -82,11 +82,9 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   <div class="step-divider"></div>
   <div class="step"><span class="step-dot">2</span><span class="step-label">Connect</span></div>
   <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">3</span><span class="step-label">Ingest</span></div>
+  <div class="step"><span class="step-dot">3</span><span class="step-label">Build</span></div>
   <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">4</span><span class="step-label">Build</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">5</span><span class="step-label">Ask</span></div>
+  <div class="step"><span class="step-dot">4</span><span class="step-label">Ask</span></div>
 </div>
 
 <div class="page">
@@ -99,13 +97,22 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
     <div class="next-card-text">Connect the sources you want Daat to learn from. You choose which ones — Daat only reads what you grant access to.</div>
   </div>
 
-  <a href="/connect" class="cta">Connect your sources <span class="cta-arrow">→</span></a>
+  <button id="ctaBtn" class="cta">Connect your sources <span class="cta-arrow">→</span></button>
 </div>
 
 <script>
 (async () => {
   const auth = await daatGetAuth();
   if (!auth) return;
+
+  document.getElementById('ctaBtn').addEventListener('click', async () => {
+    // Advance state so a refresh / revisit lands on /connect, not /welcome.
+    // Only advance if still in the welcome stage — don't regress a further state.
+    if (auth.onboardingState === 'welcome') {
+      try { await daatSetOnboardingState(auth, 'connect'); } catch (e) { /* proceed anyway */ }
+    }
+    window.location.href = '/connect';
+  });
 })();
 </script>
 </body>

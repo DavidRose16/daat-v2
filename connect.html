@@ -135,16 +135,14 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
 </div>
 
-<div class="stepper">
+<div class="stepper" id="stepper">
   <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
   <div class="step-divider"></div>
   <div class="step active"><span class="step-dot">2</span><span class="step-label">Connect</span></div>
   <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">3</span><span class="step-label">Ingest</span></div>
+  <div class="step"><span class="step-dot">3</span><span class="step-label">Build</span></div>
   <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">4</span><span class="step-label">Build</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">5</span><span class="step-label">Ask</span></div>
+  <div class="step"><span class="step-dot">4</span><span class="step-label">Ask</span></div>
 </div>
 
 <div class="page">
@@ -201,7 +199,9 @@ const SOURCES = [
 const SOURCE_LABELS = Object.fromEntries(SOURCES.map(s => [s.key, s.label]));
 let _auth = null;
 let BASE_HEADERS = {};
-let _returningUser = false; // already has comprehensions → Continue goes to /ask
+// Source-management mode is driven by explicit onboarding state, not data existence.
+// A user whose workspace is 'ready' is here to manage sources, not to onboard.
+let _manageMode = false;
 
 function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -272,7 +272,7 @@ function updateContinueBar(connectedCount) {
   const btn = document.getElementById('continueBtn');
   const label = document.getElementById('continueLabel');
 
-  if (_returningUser) {
+  if (_manageMode) {
     status.textContent = connectedCount > 0
       ? `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected.`
       : 'No sources connected.';
@@ -294,7 +294,16 @@ function updateContinueBar(connectedCount) {
     btn.disabled = false;
     label.textContent = 'Continue';
   }
-  btn.onclick = () => { window.location.href = '/ingest'; };
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      await daatSetOnboardingState(_auth, 'processing');
+    } catch (e) {
+      // Don't hard-block the user — but log so they can retry if redirect fails.
+      console.warn('Failed to advance onboarding_state:', e);
+    }
+    window.location.href = '/processing';
+  };
 }
 
 function connectSource(oauthFn) {
@@ -314,12 +323,14 @@ async function disconnectSource(key, table) {
   }
 }
 
-async function checkReturningUser() {
-  const { count } = await _auth.sb
-    .from('comprehensions_output')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', _auth.workspaceId);
-  _returningUser = (count ?? 0) > 0;
+function applyManageModeChrome() {
+  // In management mode the page is no longer step 2 of onboarding — hide the stepper
+  // and update the heading copy so returning users don't see "your next step" framing.
+  document.getElementById('stepper').style.display = 'none';
+  const title = document.querySelector('.page-title');
+  const sub = document.querySelector('.page-sub');
+  if (title) title.textContent = 'Your sources';
+  if (sub) sub.textContent = 'Connect new sources or disconnect existing ones. Changes take effect immediately.';
 }
 
 async function init() {
@@ -330,8 +341,9 @@ async function init() {
     'Authorization': `Bearer ${_auth.token}`,
     'Content-Type': 'application/json',
   };
+  _manageMode = _auth.onboardingState === 'ready';
+  if (_manageMode) applyManageModeChrome();
   showOauthBanner();
-  await checkReturningUser();
   loadSources();
 }
 init();

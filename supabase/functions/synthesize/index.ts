@@ -110,6 +110,7 @@ interface SynthesisQuery {
   task: string;
   entities?: string[];
   intent?: string;
+  workspace_id?: string;
 }
 
 interface ComprehensionRow {
@@ -176,6 +177,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 
   // Parse body
@@ -191,16 +193,41 @@ Deno.serve(async (req) => {
     return json({ error: "task is required and must be a string" }, 400);
   }
 
-  // 1. Fetch comprehensions (most recent 100, filter in memory)
   const sbHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${supabaseKey}`,
     apikey: supabaseKey,
   };
 
+  // Resolve workspace — try JWT first, fall back to body.workspace_id (MCP/local)
+  let workspaceId: string | undefined;
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader.startsWith("Bearer ")) {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: authHeader, apikey: supabaseAnonKey },
+    });
+    if (userRes.ok) {
+      const { id: userId } = await userRes.json();
+      const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=workspace_id&limit=1`,
+        { headers: sbHeaders },
+      );
+      const [profile] = await profileRes.json();
+      workspaceId = profile?.workspace_id;
+    }
+  }
+  if (!workspaceId && body.workspace_id) {
+    workspaceId = body.workspace_id;
+  }
+  if (!workspaceId) {
+    return json({ error: "Unauthorized: no workspace resolved" }, 401);
+  }
+
+  // 1. Fetch comprehensions for this workspace (most recent 100, filter in memory)
   const fetchUrl =
     `${supabaseUrl}/rest/v1/comprehensions_output` +
     `?select=id,signal_id,owner_id,comprehension,model,comprehended_at,created_at` +
+    `&owner_id=eq.${workspaceId}` +
     `&order=created_at.desc&limit=100`;
 
   const fetchRes = await fetch(fetchUrl, { headers: sbHeaders });

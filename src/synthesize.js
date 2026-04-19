@@ -21,9 +21,13 @@ dotenv.config({ path: join(__dirname, '../.env') });
 export async function retrieveComprehensions({ task, entities = [] }) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const workspaceId = process.env.DAAT_WORKSPACE_ID;
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase credentials. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
+  }
+  if (!workspaceId) {
+    throw new Error('Missing DAAT_WORKSPACE_ID in .env');
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -31,6 +35,7 @@ export async function retrieveComprehensions({ task, entities = [] }) {
   const { data, error } = await supabase
     .from('comprehensions_output')
     .select('id, signal_id, owner_id, comprehension, model, comprehended_at, created_at')
+    .eq('owner_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(100);
 

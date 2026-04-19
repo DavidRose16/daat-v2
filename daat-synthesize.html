@@ -158,18 +158,22 @@
   ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/src/auth.js"></script>
 </head>
 <body>
 <div class="app">
 
   <!-- Nav -->
   <div class="tab-bar">
-    <span class="brand">DAAT v2</span>
-    <a href="/" class="tab">Admin</a>
+    <span class="brand">Lab</span>
+    <a href="/lab" class="tab">Pipeline</a>
     <a href="/daat-ingest" class="tab">Ingest</a>
     <a href="/daat-explorer" class="tab">Explorer</a>
     <a href="/daat-synthesize" class="tab active">Synthesize</a>
-    <a href="/daat-ask" class="tab">Ask</a>
+    <span style="flex:1"></span>
+    <a href="/ask" class="tab" style="color:#444">→ Daat</a>
+    <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
   </div>
 
   <!-- Stats bar -->
@@ -244,15 +248,9 @@
 </div>
 
 <script>
-const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
-const FN_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co/functions/v1';
-
-const SB_HEADERS = {
-  'apikey': SB_ANON,
-  'Authorization': `Bearer ${SB_ANON}`,
-  'Content-Type': 'application/json',
-};
+// SB_URL, SB_ANON, FN_URL from /src/auth.js
+let _auth = null;
+let SB_HEADERS = {};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -522,16 +520,28 @@ function toggleRaw(el) {
 
 // ── keyboard shortcut ─────────────────────────────────────────────────────────
 
-document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-    e.preventDefault();
-    runSynthesis();
-  }
-});
-
 // ── init ──────────────────────────────────────────────────────────────────────
-updateQueryPreview();
-loadStats();
+async function init() {
+  _auth = await daatGetAuth();
+  if (!_auth) return;
+
+  SB_HEADERS = {
+    'apikey': SB_ANON,
+    'Authorization': `Bearer ${_auth.token}`,
+    'Content-Type': 'application/json',
+  };
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      runSynthesis();
+    }
+  });
+
+  updateQueryPreview();
+  loadStats();
+}
+init();
 </script>
 </body>
 </html>

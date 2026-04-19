@@ -169,7 +169,7 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
 
   const { data: profile } = await sb
     .from('profiles')
-    .select('workspace_id')
+    .select('workspace_id, workspaces(onboarding_state)')
     .eq('user_id', session.user.id)
     .single();
 
@@ -179,24 +179,15 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
     return;
   }
 
-  const wid = profile.workspace_id;
-
-  // Route authed users to the furthest onboarding stage they've completed.
-  // Comprehensions exist → workspace is ready → Ask.
-  // Signals exist but no comprehensions → need to build.
-  // Neither → fresh start, show Welcome.
-  const [{ count: comprehensionsCount }, { count: signalsCount }] = await Promise.all([
-    sb.from('comprehensions_output').select('id', { count: 'exact', head: true }).eq('owner_id', wid),
-    sb.from('signals_core').select('id', { count: 'exact', head: true }).eq('owner_id', wid),
-  ]);
-
-  if ((comprehensionsCount ?? 0) > 0) {
-    window.location.replace('/ask');
-  } else if ((signalsCount ?? 0) > 0) {
-    window.location.replace('/build');
-  } else {
-    window.location.replace('/welcome');
-  }
+  // Route by explicit onboarding_state. Data existence is a fallback only for
+  // rows somehow missing the column (shouldn't happen post-migration).
+  const state = profile.workspaces?.onboarding_state || 'welcome';
+  const dest =
+    state === 'ready'      ? '/ask' :
+    state === 'processing' ? '/processing' :
+    state === 'connect'    ? '/connect' :
+                             '/welcome';
+  window.location.replace(dest);
 })();
 </script>
 </body>

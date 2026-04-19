@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building your workspace — Daat</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0f;
+  --surface: #111;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --text: #e2e2e2;
+  --text-dim: #888;
+  --text-dimmer: #555;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+
+.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
+.topbar-spacer { flex: 1; }
+
+.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 10px; }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
+}
+.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
+.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
+.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
+.step.active .step-label { color: var(--text); font-weight: 600; }
+.step.done .step-label { color: #4ade80; }
+.step-divider { width: 30px; height: 1px; background: var(--border2); }
+
+.page { max-width: 680px; margin: 0 auto; padding: 48px 24px 120px; }
+.page-heading { margin-bottom: 28px; text-align: center; }
+.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; color: var(--text); margin-bottom: 10px; }
+.page-sub { font-size: 13px; color: var(--text-dim); line-height: 1.65; max-width: 480px; margin: 0 auto; }
+
+/* Ingest rows */
+.source-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.source-row {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.source-row.done { border-color: #1a3a1a; }
+.source-row.err  { border-color: #3a1a1a; }
+.source-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: #1a1a1a; color: var(--text);
+}
+.source-meta { flex: 1; min-width: 0; }
+.source-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.source-status { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.source-status.ok { color: #4ade80; }
+.source-status.err { color: #f87171; }
+
+.spinner {
+  width: 14px; height: 14px; border: 2px solid #333;
+  border-top-color: var(--text-dim); border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.check { color: #4ade80; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+.cross { color: #f87171; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+
+/* Build panel */
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px 26px;
+  margin-bottom: 20px;
+}
+.panel.success { border-color: #1a4d2e; background: #0a140a; }
+.progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.progress-label { font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.02em; }
+.progress-count { font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.progress-bar { width: 100%; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #4ade80 0%, #60c8f8 100%); width: 0%; transition: width .4s ease; }
+.phase-text { font-size: 13px; color: var(--text-dim); line-height: 1.6; display: flex; align-items: center; gap: 10px; }
+.phase-spinner { width: 12px; height: 12px; border: 2px solid #333; border-top-color: var(--text-dim); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+
+/* Success */
+.success-check {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: #0d2b1a; border: 1px solid #1a4d2e; color: #4ade80;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; margin: 0 auto 16px;
+}
+.success-title { font-size: 18px; font-weight: 700; color: #4ade80; margin-bottom: 8px; text-align: center; }
+.success-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; text-align: center; }
+
+/* Continue bar */
+.continue-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,15,15,0.94); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.continue-status { font-size: 12px; color: var(--text-dimmer); }
+.continue-status.ready { color: #4ade80; }
+.continue-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; background: #e2e2e2; color: #0f0f0f;
+  font-size: 13px; font-weight: 600; border-radius: 8px;
+  border: none; cursor: pointer; transition: background .12s, opacity .12s;
+}
+.continue-btn:hover:not(:disabled) { background: #fff; }
+.continue-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.error-box {
+  display: none;
+  background: #1a0808; border: 1px solid #4d1a1a;
+  color: #f87171; padding: 14px 18px; border-radius: 8px;
+  font-size: 13px; line-height: 1.6;
+}
+.error-box.visible { display: block; }
+
+.phase-hidden { display: none !important; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/src/auth.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-brand">Daat</span>
+  <span class="topbar-spacer"></span>
+  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+</div>
+
+<div class="stepper">
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
+  <div class="step-divider"></div>
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Connect</span></div>
+  <div class="step-divider"></div>
+  <div class="step active"><span class="step-dot">3</span><span class="step-label">Build</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">4</span><span class="step-label">Ask</span></div>
+</div>
+
+<div class="page">
+
+  <div class="page-heading">
+    <div class="page-title" id="pageTitle">Building your workspace</div>
+    <p class="page-sub" id="pageSub">Daat is reading from the sources you connected and organizing the material into a workspace it can reason over. This usually takes a minute.</p>
+  </div>
+
+  <!-- Phase 1: ingest rows -->
+  <div class="source-list" id="sourceList"></div>
+
+  <!-- Phase 2: comprehension progress -->
+  <div class="panel phase-hidden" id="buildPanel">
+    <div class="progress-header">
+      <span class="progress-label">Comprehension progress</span>
+      <span class="progress-count" id="progressCount">0 / 0</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="phase-text" id="phaseText">
+      <span class="phase-spinner"></span>
+      <span>Starting…</span>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+</div>
+
+<div class="continue-bar">
+  <span class="continue-status" id="continueStatus">Preparing your workspace…</span>
+  <button class="continue-btn" id="continueBtn" disabled>
+    <span>Enter Daat</span><span>→</span>
+  </button>
+</div>
+
+<script>
+const INGEST_SOURCES = [
+  { key: 'slack',      table: 'connections_slack',      label: 'Slack',             color: '#38bdf8', ingestFn: 'slack-ingest'      },
+  { key: 'notion',     table: 'connections_notion',     label: 'Notion',            color: '#a78bfa', ingestFn: 'notion-ingest'     },
+  { key: 'quickbooks', table: 'connections_quickbooks', label: 'QuickBooks',        color: '#4ade80', ingestFn: 'quickbooks-ingest' },
+  { key: 'google',     table: 'connections_google',     label: 'Google Workspace',  color: '#fb923c', ingestFn: 'google-ingest'     },
+];
+
+// Sources that produce comprehensions (excludes google = access).
+const BUILD_SOURCES = ['slack', 'quickbooks', 'notion'];
+const PER_SOURCE_LIMIT = { slack: 8, quickbooks: 8, notion: 2 };
+const SOURCE_LABEL = { slack: 'Slack', quickbooks: 'QuickBooks', notion: 'Notion' };
+
+let _auth = null;
+let BASE_HEADERS = {};
+
+function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function setPhase(text, withSpinner = true) {
+  const el = document.getElementById('phaseText');
+  el.innerHTML = withSpinner
+    ? `<span class="phase-spinner"></span><span>${esc(text)}</span>`
+    : `<span>${esc(text)}</span>`;
+}
+
+function setProgress(done, total) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressCount').textContent = `${done} / ${total}`;
+}
+
+function renderSourceRow(source, state, detail) {
+  const row = document.getElementById(`row-${source.key}`);
+  if (!row) return;
+  row.className = `source-row ${state === 'done' ? 'done' : state === 'error' ? 'err' : ''}`;
+  const indicator =
+    state === 'running' ? '<div class="spinner"></div>' :
+    state === 'done'    ? '<span class="check">✓</span>' :
+    state === 'error'   ? '<span class="cross">×</span>' :
+    '<div class="spinner" style="opacity:.25"></div>';
+  const statusText =
+    state === 'waiting' ? 'Queued' :
+    state === 'running' ? 'Reading…' :
+    state === 'done'    ? detail :
+    state === 'error'   ? detail :
+    '';
+  const statusClass = state === 'done' ? 'ok' : state === 'error' ? 'err' : '';
+  row.innerHTML = `
+    <div class="source-icon" style="color:${source.color}">${source.label[0]}</div>
+    <div class="source-meta">
+      <div class="source-name">${esc(source.label)}</div>
+      <div class="source-status ${statusClass}">${esc(statusText)}</div>
+    </div>
+    ${indicator}
+  `;
+}
+
+function showError(message) {
+  const box = document.getElementById('errorBox');
+  box.textContent = message;
+  box.classList.add('visible');
+  document.getElementById('continueStatus').textContent = 'Something went wrong.';
+}
+
+async function showSuccessAndAdvance(totalBuilt) {
+  // Mark workspace ready — idempotent if already ready.
+  try { await daatSetOnboardingState(_auth, 'ready'); } catch (_) { /* swallow — we're about to route anyway */ }
+
+  // Hide ingest rows (they were phase 1), swap build panel to success.
+  document.getElementById('sourceList').classList.add('phase-hidden');
+  const panel = document.getElementById('buildPanel');
+  panel.classList.remove('phase-hidden');
+  panel.className = 'panel success';
+  panel.innerHTML = `
+    <div class="success-check">✓</div>
+    <div class="success-title">Your workspace is ready</div>
+    <div class="success-body">Daat has read and organized ${totalBuilt.toLocaleString()} item${totalBuilt !== 1 ? 's' : ''}. You can now ask it questions about your organization.</div>
+  `;
+  document.getElementById('pageTitle').textContent = 'Workspace ready';
+  document.getElementById('pageSub').textContent = "You're all set.";
+
+  const status = document.getElementById('continueStatus');
+  const btn = document.getElementById('continueBtn');
+  status.textContent = 'Workspace built.';
+  status.className = 'continue-status ready';
+  btn.disabled = false;
+
+  setTimeout(() => { window.location.href = '/ask'; }, 1800);
+}
+
+// ---------- Phase 1: ingest ----------
+
+async function getConnectedSources() {
+  const results = await Promise.all(
+    INGEST_SOURCES.map(s =>
+      fetch(`${SB_URL}/rest/v1/${s.table}?owner_id=eq.${_auth.workspaceId}&limit=1`, { headers: BASE_HEADERS })
+        .then(r => r.json()).then(d => (d && d[0]) ? s : null)
+    )
+  );
+  return results.filter(Boolean);
+}
+
+async function countSignals() {
+  const { count } = await _auth.sb
+    .from('signals_core')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', _auth.workspaceId);
+  return count ?? 0;
+}
+
+async function runIngest(source) {
+  renderSourceRow(source, 'running');
+  try {
+    const res = await fetch(`${FN_URL}/${source.ingestFn}`, {
+      method: 'POST',
+      headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || body.error) {
+      renderSourceRow(source, 'error', body?.error || `HTTP ${res.status}`);
+      return { ok: false, ingested: 0 };
+    }
+    const n = body.ingested ?? 0;
+    renderSourceRow(source, 'done', `Imported ${n} item${n !== 1 ? 's' : ''}`);
+    return { ok: true, ingested: n };
+  } catch (e) {
+    renderSourceRow(source, 'error', e.message);
+    return { ok: false, ingested: 0 };
+  }
+}
+
+async function phaseIngest() {
+  const connected = await getConnectedSources();
+  if (connected.length === 0) {
+    showError('No connected sources. Go back to Connect to add one.');
+    return { ok: false, connected: [] };
+  }
+
+  const list = document.getElementById('sourceList');
+  list.innerHTML = connected.map(s => `<div class="source-row" id="row-${s.key}"></div>`).join('');
+  connected.forEach(s => renderSourceRow(s, 'waiting'));
+
+  // If signals already exist (resuming mid-onboarding), skip re-ingest.
+  const existing = await countSignals();
+  if (existing > 0) {
+    for (const s of connected) renderSourceRow(s, 'done', 'Already ingested');
+    return { ok: true, connected };
+  }
+
+  const results = await Promise.all(connected.map(runIngest));
+  if (!results.some(r => r.ok)) {
+    showError('Ingest failed on all sources. Check the function logs and try again.');
+    return { ok: false, connected };
+  }
+  return { ok: true, connected };
+}
+
+// ---------- Phase 2: build ----------
+
+async function countAssembly({ source, pendingOnly }) {
+  const sourceFilter = source
+    ? `&signals_core.source=eq.${source}`
+    : `&signals_core.source=neq.google`;
+  const pendingFilter = pendingOnly ? '&comprehended_at=is.null' : '';
+  const url = `${SB_URL}/rest/v1/comprehensions_assembly`
+    + `?owner_id=eq.${_auth.workspaceId}`
+    + `&select=id,signals_core!inner(source)`
+    + sourceFilter
+    + pendingFilter;
+  const res = await fetch(url, { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } });
+  const range = res.headers.get('content-range') || '';
+  const total = parseInt(range.split('/')[1], 10);
+  return isNaN(total) ? 0 : total;
+}
+
+async function countComprehensions() {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/comprehensions_output?owner_id=eq.${_auth.workspaceId}&select=id`,
+    { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
+  );
+  const range = res.headers.get('content-range') || '';
+  const total = parseInt(range.split('/')[1], 10);
+  return isNaN(total) ? 0 : total;
+}
+
+async function runComprehendBatch(source) {
+  const limit = PER_SOURCE_LIMIT[source];
+  const res = await fetch(`${FN_URL}/comprehend?source=${source}&limit=${limit}`, {
+    method: 'POST',
+    headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function phaseBuild() {
+  document.getElementById('buildPanel').classList.remove('phase-hidden');
+  setPhase('Counting your signals…');
+
+  const total = await countAssembly({ source: null, pendingOnly: false });
+  if (total === 0) {
+    const built = await countComprehensions();
+    if (built > 0) {
+      setProgress(built, built);
+      await showSuccessAndAdvance(built);
+      return true;
+    }
+    showError('No material to build with. Go back and ingest some sources.');
+    return false;
+  }
+
+  let pendingAll = await countAssembly({ source: null, pendingOnly: true });
+  setProgress(total - pendingAll, total);
+  setPhase(`Reading ${total} item${total !== 1 ? 's' : ''}…`);
+
+  for (const source of BUILD_SOURCES) {
+    let sourcePending = await countAssembly({ source, pendingOnly: true });
+    if (sourcePending === 0) continue;
+
+    setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
+    let consecutiveNoProgress = 0;
+
+    while (sourcePending > 0) {
+      try {
+        const result = await runComprehendBatch(source);
+        const failed = result.failed ?? 0;
+
+        const newSourcePending = await countAssembly({ source, pendingOnly: true });
+        pendingAll = await countAssembly({ source: null, pendingOnly: true });
+        setProgress(total - pendingAll, total);
+
+        if (newSourcePending === sourcePending) {
+          consecutiveNoProgress++;
+          if (consecutiveNoProgress >= 2) {
+            if (failed > 0) {
+              showError(`Build stalled on ${SOURCE_LABEL[source]}. ${failed} item${failed !== 1 ? 's' : ''} could not be processed. Check the function logs for details.`);
+            } else {
+              showError(`Build stalled on ${SOURCE_LABEL[source]} with no progress. Please retry.`);
+            }
+            return false;
+          }
+        } else {
+          consecutiveNoProgress = 0;
+        }
+
+        sourcePending = newSourcePending;
+        if (sourcePending > 0) {
+          setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
+        }
+      } catch (e) {
+        showError(`${SOURCE_LABEL[source]}: ${e.message}`);
+        return false;
+      }
+    }
+  }
+
+  setPhase('Finalizing your workspace…');
+  const built = await countComprehensions();
+  await showSuccessAndAdvance(built);
+  return true;
+}
+
+// ---------- Controller ----------
+
+async function init() {
+  _auth = await daatGetAuth();
+  if (!_auth) return;
+
+  // Guard: only users who've committed to onboarding (connect or processing) or are
+  // re-entering after a stall belong here. Ready users go to /ask.
+  // Welcome/connect states are allowed to resume here (e.g. manual visit), but we
+  // don't demote their state.
+  if (_auth.onboardingState === 'ready') {
+    // Nothing to do — already built. Bounce to ask.
+    window.location.replace('/ask');
+    return;
+  }
+  if (_auth.onboardingState === 'welcome') {
+    window.location.replace('/welcome');
+    return;
+  }
+
+  BASE_HEADERS = {
+    'apikey': SB_ANON,
+    'Authorization': `Bearer ${_auth.token}`,
+    'Content-Type': 'application/json',
+  };
+
+  document.getElementById('continueBtn').onclick = () => { window.location.href = '/ask'; };
+
+  // Ensure state reflects reality: we are actively processing.
+  if (_auth.onboardingState !== 'processing') {
+    try { await daatSetOnboardingState(_auth, 'processing'); } catch (_) { /* proceed */ }
+  }
+
+  // Phase 1: ingest
+  document.getElementById('pageTitle').textContent = 'Reading your material';
+  document.getElementById('pageSub').textContent = 'Daat is pulling in data from each connected source.';
+  const ingestResult = await phaseIngest();
+  if (!ingestResult.ok) return;
+
+  // Phase 2: build
+  document.getElementById('pageTitle').textContent = 'Building your workspace';
+  document.getElementById('pageSub').textContent = 'Daat is organizing the material into a unified workspace it can reason over.';
+  await phaseBuild();
+}
+init();
+</script>
+</body>
+</html>

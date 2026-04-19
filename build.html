@@ -172,13 +172,29 @@ function setProgress(done, total) {
   document.getElementById('progressCount').textContent = `${done} / ${total}`;
 }
 
-async function countAssembly(filter) {
-  // filter like `comprehended_at=is.null` or empty for total
-  const q = filter ? `&${filter}` : '';
-  const res = await fetch(
-    `${SB_URL}/rest/v1/comprehensions_assembly?owner_id=eq.${_auth.workspaceId}&signals_core.source=neq.google&select=id,signals_core!inner(source)${q}`,
-    { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
-  );
+// Sources that actually produce comprehensions (excludes google = access).
+const BUILD_SOURCES = ['slack', 'quickbooks', 'notion'];
+
+// Source-aware per-batch limits — mirror the edge function defaults.
+// Notion is smallest because a single page can fan out into many Claude calls.
+const PER_SOURCE_LIMIT = { slack: 8, quickbooks: 8, notion: 2 };
+
+// Human label for the current source being processed.
+const SOURCE_LABEL = { slack: 'Slack', quickbooks: 'QuickBooks', notion: 'Notion' };
+
+async function countAssembly({ source, pendingOnly }) {
+  // source: one of BUILD_SOURCES, or null for "all non-google".
+  // pendingOnly: true → comprehended_at IS NULL, false → all.
+  const sourceFilter = source
+    ? `&signals_core.source=eq.${source}`
+    : `&signals_core.source=neq.google`;
+  const pendingFilter = pendingOnly ? '&comprehended_at=is.null' : '';
+  const url = `${SB_URL}/rest/v1/comprehensions_assembly`
+    + `?owner_id=eq.${_auth.workspaceId}`
+    + `&select=id,signals_core!inner(source)`
+    + sourceFilter
+    + pendingFilter;
+  const res = await fetch(url, { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } });
   const range = res.headers.get('content-range') || '';
   const total = parseInt(range.split('/')[1], 10);
   return isNaN(total) ? 0 : total;
@@ -194,8 +210,9 @@ async function countComprehensions() {
   return isNaN(total) ? 0 : total;
 }
 
-async function runComprehendBatch() {
-  const res = await fetch(`${FN_URL}/comprehend?limit=20`, {
+async function runComprehendBatch(source) {
+  const limit = PER_SOURCE_LIMIT[source];
+  const res = await fetch(`${FN_URL}/comprehend?source=${source}&limit=${limit}`, {
     method: 'POST',
     headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
   });
@@ -250,7 +267,7 @@ async function init() {
 
   setPhase('Counting your signals…');
 
-  const total = await countAssembly('');
+  const total = await countAssembly({ source: null, pendingOnly: false });
   if (total === 0) {
     // Nothing to do — check if workspace is actually built
     const built = await countComprehensions();
@@ -263,49 +280,56 @@ async function init() {
     return;
   }
 
-  let pending = await countAssembly('comprehended_at=is.null');
-  let done = total - pending;
-  setProgress(done, total);
+  let pendingAll = await countAssembly({ source: null, pendingOnly: true });
+  setProgress(total - pendingAll, total);
   setPhase(`Reading ${total} item${total !== 1 ? 's' : ''}…`);
 
-  let consecutiveNoProgress = 0;
+  // Drain each source separately with its own batch size.
+  // Smaller sources first so the user sees early progress.
+  for (const source of BUILD_SOURCES) {
+    let sourcePending = await countAssembly({ source, pendingOnly: true });
+    if (sourcePending === 0) continue;
 
-  while (pending > 0) {
-    try {
-      const result = await runComprehendBatch();
-      const advanced = (result.succeeded ?? 0) + (result.skipped ?? 0);
-      const failed   = result.failed ?? 0;
+    setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
 
-      const newPending = await countAssembly('comprehended_at=is.null');
-      const newDone = total - newPending;
-      setProgress(newDone, total);
+    let consecutiveNoProgress = 0;
 
-      if (newPending === pending) {
-        // No progress this cycle
-        consecutiveNoProgress++;
-        if (consecutiveNoProgress >= 2) {
-          if (failed > 0) {
-            showError(`Build stalled. ${failed} item${failed !== 1 ? 's' : ''} could not be processed.`);
-          } else {
-            showError('Build stalled with no progress. Please retry.');
+    while (sourcePending > 0) {
+      try {
+        const result = await runComprehendBatch(source);
+        const failed = result.failed ?? 0;
+
+        const newSourcePending = await countAssembly({ source, pendingOnly: true });
+        pendingAll = await countAssembly({ source: null, pendingOnly: true });
+        setProgress(total - pendingAll, total);
+
+        if (newSourcePending === sourcePending) {
+          // No progress for this source — don't spin forever.
+          consecutiveNoProgress++;
+          if (consecutiveNoProgress >= 2) {
+            if (failed > 0) {
+              showError(`Build stalled on ${SOURCE_LABEL[source]}. ${failed} item${failed !== 1 ? 's' : ''} could not be processed. Check the function logs for details.`);
+            } else {
+              showError(`Build stalled on ${SOURCE_LABEL[source]} with no progress. Please retry.`);
+            }
+            return;
           }
-          return;
+        } else {
+          consecutiveNoProgress = 0;
         }
-      } else {
-        consecutiveNoProgress = 0;
+
+        sourcePending = newSourcePending;
+        if (sourcePending > 0) {
+          setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
+        }
+      } catch (e) {
+        showError(`${SOURCE_LABEL[source]}: ${e.message}`);
+        return;
       }
-
-      pending = newPending;
-      setPhase(pending > 0
-        ? `Organizing your material… ${newDone} of ${total} complete.`
-        : 'Finalizing your workspace…');
-
-    } catch (e) {
-      showError(e.message);
-      return;
     }
   }
 
+  setPhase('Finalizing your workspace…');
   const built = await countComprehensions();
   showSuccess(built);
 }

@@ -559,6 +559,21 @@ function validateAndNormalize(parsed: unknown): Record<string, unknown> {
 const NOTION_DIRECT_THRESHOLD = 20_000; // chars; at or below → one Claude call
 const NOTION_CHUNK_TARGET     = 15_000; // chars per chunk (target, not hard cap)
 
+// Size guard — signals above these thresholds are skipped (comprehended_at set)
+// so they stop blocking the build queue. Re-enable later by clearing comprehended_at
+// via SQL if/when the processing path is made robust enough to handle them.
+const MAX_RAW_CONTENT_BYTES    = 500_000; // ~500 KB serialized raw_content (all sources)
+const MAX_NOTION_CLEANED_CHARS = 250_000; // cleaned markdown length after preprocessing
+
+// Source-aware default row limits per comprehend invocation.
+// Notion is 1 because a single page can expand into many Claude calls via chunking.
+const DEFAULT_LIMIT_BY_SOURCE: Record<string, number> = {
+  notion:     1,
+  slack:      8,
+  quickbooks: 8,
+};
+const DEFAULT_LIMIT_FALLBACK = 5;
+
 // Extract plain text from a Notion rich_text array.
 function extractRichText(rt: unknown): string {
   if (!Array.isArray(rt)) return "";
@@ -842,6 +857,29 @@ async function callClaude(
 }
 
 // ============================================================
+// Assembly row bookkeeping
+// ============================================================
+
+// Mark an assembly row as processed (comprehended_at = now) without inserting
+// into comprehensions_output. Used to skip oversized or unprocessable signals
+// so they stop blocking the build queue. Returns true on success.
+async function markAssemblyProcessed(
+  supabaseUrl: string,
+  sbHeaders: Record<string, string>,
+  assemblyId: string,
+): Promise<boolean> {
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/comprehensions_assembly?id=eq.${assemblyId}`,
+    {
+      method:  "PATCH",
+      headers: sbHeaders,
+      body:    JSON.stringify({ comprehended_at: new Date().toISOString() }),
+    },
+  );
+  return res.ok;
+}
+
+// ============================================================
 // Main handler
 // ============================================================
 
@@ -854,8 +892,14 @@ const CORS_HEADERS = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   const url = new URL(req.url);
-  const limitParam = url.searchParams.get("limit");
-  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : 10;
+  const limitParam  = url.searchParams.get("limit");
+  const sourceParam = url.searchParams.get("source");
+
+  // Source-aware default limit. Explicit ?limit= still wins.
+  const defaultLimit = sourceParam
+    ? (DEFAULT_LIMIT_BY_SOURCE[sourceParam] ?? DEFAULT_LIMIT_FALLBACK)
+    : DEFAULT_LIMIT_FALLBACK;
+  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : defaultLimit;
 
   const supabaseUrl       = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -867,12 +911,24 @@ Deno.serve(async (req) => {
     apikey:         supabaseServiceKey,
   };
 
-  // 1. Fetch all pending assembly rows (comprehended_at IS NULL, source != google)
+  // 1. Fetch pending assembly rows.
+  //    If ?source= is given, filter to that source. Otherwise exclude google
+  //    (google = access archetype, not comprehended by this function).
+  const sourceFilter = sourceParam
+    ? `&signals_core.source=eq.${encodeURIComponent(sourceParam)}`
+    : `&signals_core.source=neq.google`;
+
   const queryUrl =
     `${supabaseUrl}/rest/v1/comprehensions_assembly` +
     `?select=id,signal_id,owner_id,source_data,signals_core!inner(source,raw_content,content_archetype)` +
     `&comprehended_at=is.null` +
-    `&signals_core.source=neq.google`;
+    sourceFilter;
+
+  console.log(JSON.stringify({
+    step: "comprehend_invoked",
+    source: sourceParam ?? "all",
+    limit,
+  }));
 
   const fetchRes = await fetch(queryUrl, { headers: sbHeaders });
   if (!fetchRes.ok) {
@@ -894,14 +950,35 @@ Deno.serve(async (req) => {
   // 2. Process sequentially
   for (const row of rows) {
     const { id: assemblyId, signal_id, owner_id, source_data } = row;
-    const { content_archetype, raw_content } = row.signals_core;
+    const { source, content_archetype, raw_content } = row.signals_core;
+
+    const rawSize = JSON.stringify(raw_content).length;
+    console.log(JSON.stringify({
+      step: "begin_signal",
+      signal_id,
+      source,
+      content_archetype,
+      raw_size: rawSize,
+    }));
 
     // 2a. Select prompt based on content_archetype
     const sourcePrompt = selectPrompt(content_archetype);
     if (sourcePrompt === null) {
-      const e0 = { reason: "prompt_selection_failed", signal_id, content_archetype };
+      const e0 = { reason: "prompt_selection_failed", signal_id, source, content_archetype };
       console.log(JSON.stringify(e0)); errors.push(e0);
       skipped++;
+      continue;
+    }
+
+    // 2a-guard. Global size guard — skip oversized signals so they stop blocking the queue.
+    if (rawSize > MAX_RAW_CONTENT_BYTES) {
+      const reason = "raw_content_oversized";
+      console.log(JSON.stringify({
+        reason, signal_id, source, raw_size: rawSize, max: MAX_RAW_CONTENT_BYTES,
+      }));
+      errors.push({ reason, signal_id, source, raw_size: rawSize });
+      const marked = await markAssemblyProcessed(supabaseUrl, sbHeaders, assemblyId);
+      if (marked) skipped++; else failed++;
       continue;
     }
 
@@ -919,12 +996,27 @@ Deno.serve(async (req) => {
       const lines       = blocksToLines(raw_content);
       const fullContent = buildFullContent(header, lines);
       const cleanedLen  = fullContent.length;
+
+      // Notion-specific size guard — skip pages whose cleaned content is still huge
+      // after preprocessing (long handbooks, database dumps). Keeps the queue moving.
+      if (cleanedLen > MAX_NOTION_CLEANED_CHARS) {
+        const reason = "notion_cleaned_oversized";
+        console.log(JSON.stringify({
+          reason, signal_id, source, raw_len: rawLen, cleaned_len: cleanedLen, max: MAX_NOTION_CLEANED_CHARS,
+        }));
+        errors.push({ reason, signal_id, source, cleaned_len: cleanedLen });
+        const marked = await markAssemblyProcessed(supabaseUrl, sbHeaders, assemblyId);
+        if (marked) skipped++; else failed++;
+        continue;
+      }
+
       const isChunked   = cleanedLen > NOTION_DIRECT_THRESHOLD;
       const inputs      = isChunked ? chunkPageLines(header, lines) : [fullContent];
 
       console.log(JSON.stringify({
         step:        "notion_prepare",
         signal_id,
+        source,
         raw_len:     rawLen,
         cleaned_len: cleanedLen,
         chunked:     isChunked,
@@ -951,8 +1043,9 @@ Deno.serve(async (req) => {
 
         const result = await callClaude(userMessage, anthropicApiKey, signal_id, chunkCtx);
         if (!result.ok) {
-          console.log(JSON.stringify(result.error));
-          errors.push(result.error);
+          const enriched = { ...result.error, source };
+          console.log(JSON.stringify(enriched));
+          errors.push(enriched);
           signalFailed = true;
           break;
         }
@@ -972,7 +1065,7 @@ Deno.serve(async (req) => {
             chunks_merged: chunkResults.length,
           }));
         } catch (e) {
-          const emrg = { reason: "merge_failed", signal_id, error: String(e) };
+          const emrg = { reason: "merge_failed", signal_id, source, error: String(e) };
           console.log(JSON.stringify(emrg)); errors.push(emrg);
           failed++;
           continue;
@@ -992,8 +1085,9 @@ Deno.serve(async (req) => {
 
       const result = await callClaude(userMessage, anthropicApiKey, signal_id);
       if (!result.ok) {
-        console.log(JSON.stringify(result.error));
-        errors.push(result.error);
+        const enriched = { ...result.error, source };
+        console.log(JSON.stringify(enriched));
+        errors.push(enriched);
         failed++;
         continue;
       }

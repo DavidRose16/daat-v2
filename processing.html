@@ -413,7 +413,10 @@ async function countAssembly({ source, pendingOnly }) {
   const sourceFilter = source
     ? `&signals_core.source=eq.${source}`
     : `&signals_core.source=neq.google`;
-  const pendingFilter = pendingOnly ? '&comprehended_at=is.null' : '';
+  // Pending = still unprocessed AND not yet at the attempts cap. Rows at the
+  // cap remain in the table for inspection but don't count as pending, so a
+  // poison row can't hold progress hostage or trigger the stall detector.
+  const pendingFilter = pendingOnly ? '&comprehended_at=is.null&attempts=lt.3' : '';
   const url = `${SB_URL}/rest/v1/comprehensions_assembly`
     + `?owner_id=eq.${_auth.workspaceId}`
     + `&select=id,signals_core!inner(source)`

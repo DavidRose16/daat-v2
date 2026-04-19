@@ -424,6 +424,21 @@ Do not infer internal strategy, priorities, or intent beyond what is directly su
 - Your output must be valid JSON matching the schema exactly. Do not include any text outside the JSON object.`;
 
 // ============================================================
+// Retry / throttle tunables
+// ============================================================
+
+// Rows whose attempts have reached this value are excluded from normal
+// processing. They remain in comprehensions_assembly with last_error set
+// for inspection; reset `attempts` to 0 to re-enqueue.
+const MAX_ATTEMPTS = 3;
+
+// Wall-clock throttle between Claude calls. Success is short — sequential
+// calls don't need much spacing. Failure keeps the larger buffer so 429s
+// get room to recover.
+const POST_SUCCESS_SLEEP_MS = 200;
+const POST_FAILURE_SLEEP_MS = 2000;
+
+// ============================================================
 // Types
 // ============================================================
 
@@ -438,6 +453,7 @@ interface AssemblyRow {
   signal_id: string;
   owner_id: string;
   source_data: unknown;
+  attempts: number;
   signals_core: SignalCore;
 }
 
@@ -803,7 +819,7 @@ async function callClaude(
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text().catch(() => "");
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, POST_FAILURE_SLEEP_MS));
       return {
         ok: false,
         error: { reason: "anthropic_api_failed", signal_id, ...ctx, status: anthropicRes.status, error: errText },
@@ -812,15 +828,15 @@ async function callClaude(
 
     anthropicData = await anthropicRes.json();
   } catch (e) {
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, POST_FAILURE_SLEEP_MS));
     return {
       ok: false,
       error: { reason: "anthropic_api_failed", signal_id, ...ctx, error: String(e) },
     };
   }
 
-  // Rate-limit buffer after every successful API call
-  await new Promise(r => setTimeout(r, 2000));
+  // Small post-success throttle
+  await new Promise(r => setTimeout(r, POST_SUCCESS_SLEEP_MS));
 
   const rawText: string =
     (anthropicData?.content as Array<{ text?: string }>)?.[0]?.text ?? "";
@@ -879,6 +895,30 @@ async function markAssemblyProcessed(
   return res.ok;
 }
 
+// Record a failed attempt without marking the row done: bump attempts,
+// stamp last_attempted_at, record last_error. Row stays pending. Once
+// attempts reaches MAX_ATTEMPTS, selection filters it out.
+async function markAssemblyFailed(
+  supabaseUrl: string,
+  sbHeaders: Record<string, string>,
+  assemblyId: string,
+  currentAttempts: number,
+  reason: string,
+): Promise<void> {
+  await fetch(
+    `${supabaseUrl}/rest/v1/comprehensions_assembly?id=eq.${assemblyId}`,
+    {
+      method:  "PATCH",
+      headers: sbHeaders,
+      body:    JSON.stringify({
+        attempts:          currentAttempts + 1,
+        last_attempted_at: new Date().toISOString(),
+        last_error:        reason.slice(0, 2000),
+      }),
+    },
+  );
+}
+
 // ============================================================
 // Main handler
 // ============================================================
@@ -912,6 +952,11 @@ Deno.serve(async (req) => {
   };
 
   // 1. Fetch pending assembly rows.
+  //    - Excludes rows already at attempts cap (they stay in the table with
+  //      last_error set, but are invisible to normal processing).
+  //    - Orders by last_attempted_at (nulls first → fresh rows come first,
+  //      previously-failed rows rotate to the back), then by assembled_at.
+  //    - Server-side LIMIT — no client-side slicing.
   //    If ?source= is given, filter to that source. Otherwise exclude google
   //    (google = access archetype, not comprehended by this function).
   const sourceFilter = sourceParam
@@ -920,14 +965,18 @@ Deno.serve(async (req) => {
 
   const queryUrl =
     `${supabaseUrl}/rest/v1/comprehensions_assembly` +
-    `?select=id,signal_id,owner_id,source_data,signals_core!inner(source,raw_content,content_archetype)` +
+    `?select=id,signal_id,owner_id,source_data,attempts,signals_core!inner(source,raw_content,content_archetype)` +
     `&comprehended_at=is.null` +
-    sourceFilter;
+    `&attempts=lt.${MAX_ATTEMPTS}` +
+    sourceFilter +
+    `&order=last_attempted_at.asc.nullsfirst,assembled_at.asc` +
+    `&limit=${limit}`;
 
   console.log(JSON.stringify({
     step: "comprehend_invoked",
     source: sourceParam ?? "all",
     limit,
+    max_attempts: MAX_ATTEMPTS,
   }));
 
   const fetchRes = await fetch(queryUrl, { headers: sbHeaders });
@@ -939,8 +988,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const allRows: AssemblyRow[] = await fetchRes.json();
-  const rows = allRows.slice(0, limit);
+  const rows: AssemblyRow[] = await fetchRes.json();
 
   let succeeded = 0;
   let failed    = 0;
@@ -949,7 +997,7 @@ Deno.serve(async (req) => {
 
   // 2. Process sequentially
   for (const row of rows) {
-    const { id: assemblyId, signal_id, owner_id, source_data } = row;
+    const { id: assemblyId, signal_id, owner_id, source_data, attempts } = row;
     const { source, content_archetype, raw_content } = row.signals_core;
 
     const rawSize = JSON.stringify(raw_content).length;
@@ -966,7 +1014,8 @@ Deno.serve(async (req) => {
     if (sourcePrompt === null) {
       const e0 = { reason: "prompt_selection_failed", signal_id, source, content_archetype };
       console.log(JSON.stringify(e0)); errors.push(e0);
-      skipped++;
+      await markAssemblyFailed(supabaseUrl, sbHeaders, assemblyId, attempts, `prompt_selection_failed:${content_archetype}`);
+      failed++;
       continue;
     }
 
@@ -1026,6 +1075,7 @@ Deno.serve(async (req) => {
       // Layer 2 — call Claude once per chunk (or once for direct path)
       const chunkResults: Record<string, unknown>[] = [];
       let signalFailed = false;
+      let signalFailReason = "";
 
       for (let ci = 0; ci < inputs.length; ci++) {
         const chunkCtx = isChunked
@@ -1047,12 +1097,17 @@ Deno.serve(async (req) => {
           console.log(JSON.stringify(enriched));
           errors.push(enriched);
           signalFailed = true;
+          signalFailReason = `${result.error.reason ?? "claude_call_failed"}${chunkCtx ? `:chunk_${chunkCtx.chunk}/${chunkCtx.total_chunks}` : ""}`;
           break;
         }
         chunkResults.push(result.comprehension);
       }
 
-      if (signalFailed) { failed++; continue; }
+      if (signalFailed) {
+        await markAssemblyFailed(supabaseUrl, sbHeaders, assemblyId, attempts, signalFailReason);
+        failed++;
+        continue;
+      }
 
       // Layer 3 — merge if chunked
       if (isChunked) {
@@ -1067,6 +1122,7 @@ Deno.serve(async (req) => {
         } catch (e) {
           const emrg = { reason: "merge_failed", signal_id, source, error: String(e) };
           console.log(JSON.stringify(emrg)); errors.push(emrg);
+          await markAssemblyFailed(supabaseUrl, sbHeaders, assemblyId, attempts, `merge_failed:${String(e).slice(0, 200)}`);
           failed++;
           continue;
         }
@@ -1088,6 +1144,7 @@ Deno.serve(async (req) => {
         const enriched = { ...result.error, source };
         console.log(JSON.stringify(enriched));
         errors.push(enriched);
+        await markAssemblyFailed(supabaseUrl, sbHeaders, assemblyId, attempts, String(result.error.reason ?? "claude_call_failed"));
         failed++;
         continue;
       }
@@ -1119,13 +1176,17 @@ Deno.serve(async (req) => {
       } catch { /* ignore parse failure */ }
 
       if ((errBody?.code as string) === "23505") {
+        // Output was already inserted by an earlier run but the assembly row
+        // never got its comprehended_at stamp. Self-heal: mark assembly done.
         console.log(JSON.stringify({ reason: "already_processed", signal_id }));
+        await markAssemblyProcessed(supabaseUrl, sbHeaders, assemblyId);
         skipped++;
         continue;
       }
 
       const e5 = { reason: "output_insert_failed", signal_id, error: errBody };
       console.log(JSON.stringify(e5)); errors.push(e5);
+      await markAssemblyFailed(supabaseUrl, sbHeaders, assemblyId, attempts, `output_insert_failed:${JSON.stringify(errBody).slice(0, 200)}`);
       failed++;
       continue;
     }
@@ -1146,6 +1207,8 @@ Deno.serve(async (req) => {
         errBody = await updateRes.json();
       } catch { /* ignore parse failure */ }
 
+      // Output row already written. Next run's 23505 branch will self-heal
+      // the comprehended_at stamp, so we don't bump attempts here.
       const e6 = { reason: "assembly_update_failed", signal_id, assembly_id: assemblyId, error: errBody };
       console.log(JSON.stringify(e6)); errors.push(e6);
       failed++;

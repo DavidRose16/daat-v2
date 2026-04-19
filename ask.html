@@ -9,146 +9,232 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .ask-heading {
-    margin-bottom: 40px;
+  .ask-main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 48px;
   }
-  .ask-heading .eyebrow { margin-bottom: 14px; }
-  .ask-heading h1       { margin-bottom: 10px; }
-  .ask-heading .lede    { max-width: 540px; }
 
-  /* Query surface */
+  .ask-header {
+    padding: 100px 0 64px;
+  }
+  .ask-header .eyebrow { margin-bottom: 20px; }
+  .ask-header .page-title { 
+    margin-bottom: 0;
+    font-size: clamp(32px, 5vw, 44px);
+  }
+
   .ask-form {
-    border-top: 2px solid var(--ink);
-    padding-top: 28px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
   }
 
-  .ask-submit-row {
+  .field-question {
+    font-size: 17px;
+    padding: 22px 26px;
+    min-height: 140px;
+    border-color: var(--border);
+    background: var(--surface);
+    resize: none;
+    line-height: 1.6;
+  }
+  .field-question:focus {
+    border-color: var(--layer-1);
+    box-shadow: none;
+    outline: none;
+  }
+  .field-question::placeholder {
+    color: var(--ink-4);
+  }
+
+  .form-options {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-top: 4px;
-  }
-  .ask-submit-hint {
-    font-size: 12px;
-    color: var(--ink-3);
-    letter-spacing: 0.01em;
-  }
-  .ask-submit-hint kbd {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 1px 5px;
-    border: 1px solid var(--border-strong);
-    background: var(--surface);
-    color: var(--ink-2);
+    gap: 20px;
+    flex-wrap: wrap;
   }
 
-  .ask-btn { min-width: 120px; justify-content: center; }
-  .ask-btn .spinner { width: 13px; height: 13px; display: none; border-top-color: var(--ink-inverse); border-color: rgba(250,250,247,0.3); border-top-color: var(--ink-inverse); }
+  .intent-group {
+    display: flex;
+    gap: 6px;
+  }
+  .intent-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 8px 14px;
+    background: var(--surface);
+    color: var(--ink-3);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all var(--t-fast);
+  }
+  .intent-btn:hover { color: var(--ink); border-color: var(--border-strong); }
+  .intent-btn.selected { 
+    background: var(--layer-1); 
+    color: var(--ink-inverse); 
+    border-color: var(--layer-1);
+  }
+
+  .ask-submit {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .ask-hint {
+    font-size: 12px;
+    color: var(--ink-4);
+  }
+  .ask-hint kbd {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 5px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    color: var(--ink-3);
+  }
+
+  .ask-btn {
+    min-width: 120px;
+  }
+  .ask-btn .spinner { 
+    width: 14px; 
+    height: 14px; 
+    display: none; 
+    border-color: rgba(250,249,246,0.3); 
+    border-top-color: var(--ink-inverse); 
+  }
   .ask-btn.running .spinner { display: block; }
   .ask-btn.running .ask-label { display: none; }
 
-  /* Result surface — editorial briefing */
-  .result-area { display: none; margin-top: 56px; }
-  .result-area.visible { display: block; }
-
-  .result-divider {
-    border: none;
+  /* Entities input — refined */
+  .entities-row {
+    padding-top: 8px;
     border-top: 1px solid var(--border);
-    margin: 0 0 36px;
   }
+  .entities-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .entities-label span { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .entities-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 8px 0;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .entities-input::placeholder { color: var(--ink-4); }
+
+  /* Result area */
+  .result-area {
+    display: none;
+    margin-top: 80px;
+    padding-top: 56px;
+    border-top: 2px solid var(--layer-1);
+  }
+  .result-area.visible { display: block; }
 
   .result-eyebrow {
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 14px;
+    color: var(--layer-2);
+    margin-bottom: 20px;
   }
 
   .summary-text {
-    font-size: 19px;
-    line-height: 1.6;
+    font-size: 20px;
+    line-height: 1.65;
     color: var(--ink);
-    letter-spacing: -0.005em;
-    margin-bottom: 32px;
+    letter-spacing: -0.01em;
+    margin-bottom: 40px;
   }
 
   .priority-card {
     display: none;
-    background: var(--brand-tint);
-    border: 1px solid var(--brand);
-    border-left-width: 3px;
-    padding: 18px 22px;
-    margin-bottom: 32px;
+    background: var(--layer-tint);
+    border-left: 2px solid var(--layer-1);
+    padding: 22px 26px;
+    margin-bottom: 40px;
   }
   .priority-card.visible { display: block; }
   .priority-label {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--brand-deep);
-    margin-bottom: 8px;
+    color: var(--layer-1);
+    margin-bottom: 10px;
   }
   .priority-text {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.65;
     color: var(--ink);
   }
 
-  /* Context — demoted, structured */
+  /* Context details */
   details.context-details {
     margin-bottom: 24px;
     border-top: 1px solid var(--border);
   }
   details.context-details > summary {
     font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-3);
     cursor: pointer;
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 16px 0;
+    gap: 10px;
+    padding: 20px 0;
     user-select: none;
     transition: color var(--t-fast);
   }
   details.context-details > summary:hover { color: var(--ink); }
   details.context-details > summary::-webkit-details-marker { display: none; }
   .summary-arrow {
-    font-size: 11px;
+    font-size: 10px;
     transition: transform var(--t-fast);
     display: inline-block;
   }
   details.context-details[open] .summary-arrow { transform: rotate(90deg); }
 
   .context-inner {
-    padding: 8px 0 24px;
+    padding: 0 0 28px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
   }
   .ctx-section-title {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
-  .ctx-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .ctx-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
   .ctx-list li {
     font-size: 14px;
     color: var(--ink);
-    padding: 10px 14px;
+    padding: 14px 18px;
     background: var(--surface);
     border: 1px solid var(--border);
     line-height: 1.55;
@@ -157,7 +243,7 @@
     font-size: 14px;
     color: var(--ink-2);
     line-height: 1.65;
-    padding: 14px 16px;
+    padding: 16px 20px;
     background: var(--surface);
     border: 1px solid var(--border);
   }
@@ -165,47 +251,52 @@
   .result-footer {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
-    padding-top: 20px;
+    padding-top: 24px;
     border-top: 1px solid var(--border);
   }
   .conf-badge {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding: 3px 8px;
+    padding: 5px 12px;
     border: 1px solid var(--border-strong);
   }
-  .conf-high   { color: var(--brand-deep); border-color: var(--brand-deep); background: var(--brand-tint); }
+  .conf-high   { color: var(--layer-1); border-color: var(--layer-2); background: var(--layer-tint); }
   .conf-medium { color: var(--warn); border-color: #D9B778; background: var(--warn-bg); }
   .conf-low    { color: var(--danger); border-color: #E59A94; background: var(--danger-bg); }
 
   .source-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .source-tag {
-    font-size: 11px;
-    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 5px 10px;
     background: var(--surface);
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--border);
     color: var(--ink-3);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .error-box {
     display: none;
-    border: 1px solid #E59A94;
+    border-left: 2px solid var(--danger);
     background: var(--danger-bg);
     color: var(--danger);
-    padding: 14px 18px;
+    padding: 18px 22px;
     font-size: 14px;
     line-height: 1.55;
-    margin: 36px 0;
+    margin: 48px 0;
   }
   .error-box.visible { display: block; }
 
-  @media (max-width: 560px) {
-    .summary-text { font-size: 17px; }
+  @media (max-width: 640px) {
+    .ask-main { padding: 0 24px; }
+    .ask-header { padding: 60px 0 40px; }
+    .summary-text { font-size: 18px; }
+    .form-options { flex-direction: column; align-items: flex-start; }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -215,60 +306,56 @@
 
 <div id="daat-shell"></div>
 
-<main class="daat-page">
+<main class="ask-main">
 
-  <header class="ask-heading">
+  <header class="ask-header">
     <div class="eyebrow">Ask</div>
     <h1 class="page-title">What do you need to understand?</h1>
-    <p class="lede">Describe what you want to know. Daat reads across your connected sources and returns a grounded briefing.</p>
   </header>
 
   <div class="ask-form" id="askForm">
 
     <div>
-      <label class="field-label">Intent</label>
-      <div class="segmented" id="intentGroup">
-        <button class="segmented-btn selected" data-intent="inform">Inform</button>
-        <button class="segmented-btn" data-intent="decide">Decide</button>
-        <button class="segmented-btn" data-intent="diagnose">Diagnose</button>
-        <button class="segmented-btn" data-intent="plan">Plan</button>
+      <textarea class="field-question" id="taskInput" placeholder="Describe what you want to know. Daat reads across your connected sources and returns a grounded briefing."></textarea>
+    </div>
+
+    <div class="form-options">
+      <div class="intent-group" id="intentGroup">
+        <button class="intent-btn selected" data-intent="inform">Inform</button>
+        <button class="intent-btn" data-intent="decide">Decide</button>
+        <button class="intent-btn" data-intent="diagnose">Diagnose</button>
+        <button class="intent-btn" data-intent="plan">Plan</button>
+      </div>
+
+      <div class="ask-submit">
+        <span class="ask-hint"><kbd>Cmd</kbd> + <kbd>Enter</kbd></span>
+        <button class="btn btn-primary ask-btn" id="askBtn">
+          <span class="ask-label">Ask</span>
+          <span class="spinner"></span>
+        </button>
       </div>
     </div>
 
-    <div>
-      <label class="field-label" for="taskInput">Your question</label>
-      <textarea class="field-textarea" id="taskInput" placeholder="e.g. Where are we on the billing migration and what is unresolved?"></textarea>
+    <div class="entities-row">
+      <div class="entities-label">Focus <span>optional</span></div>
+      <input class="entities-input" id="entitiesInput" type="text" placeholder="People, topics, or systems — comma separated">
     </div>
 
-    <div>
-      <label class="field-label" for="entitiesInput">People, topics, or systems <span class="hint">— optional</span></label>
-      <input class="field-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
-    </div>
-
-    <div class="ask-submit-row">
-      <span class="ask-submit-hint"><kbd>⌘</kbd> + <kbd>↵</kbd> to submit</span>
-      <button class="btn btn-primary ask-btn" id="askBtn">
-        <span class="ask-label">Ask Daat</span>
-        <span class="spinner"></span>
-      </button>
-    </div>
-
-  </div><!-- #askForm -->
+  </div>
 
   <div class="error-box" id="errorBox"></div>
 
   <div class="result-area" id="resultArea">
-    <hr class="result-divider">
     <div class="result-eyebrow">Briefing</div>
     <p class="summary-text" id="summaryText"></p>
 
     <div class="priority-card" id="priorityCard">
-      <div class="priority-label">Priority context</div>
+      <div class="priority-label">Priority</div>
       <p class="priority-text" id="priorityText"></p>
     </div>
 
     <details class="context-details" id="contextDetails">
-      <summary><span class="summary-arrow">›</span> Context &amp; grounding</summary>
+      <summary><span class="summary-arrow">›</span> Context &amp; Grounding</summary>
       <div class="context-inner" id="contextInner"></div>
     </details>
 
@@ -287,7 +374,6 @@ async function init() {
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Gate by explicit onboarding state. Only 'ready' users belong on /ask.
   if (_auth.onboardingState !== 'ready') {
     const dest =
       _auth.onboardingState === 'processing' ? '/processing' :
@@ -298,9 +384,9 @@ async function init() {
   }
 
   document.getElementById('intentGroup').addEventListener('click', e => {
-    const btn = e.target.closest('.segmented-btn');
+    const btn = e.target.closest('.intent-btn');
     if (!btn) return;
-    document.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.intent-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedIntent = btn.dataset.intent;
   });

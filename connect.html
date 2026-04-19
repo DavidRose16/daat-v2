@@ -9,74 +9,143 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .connect-heading { margin-bottom: 40px; }
-  .connect-heading .eyebrow { margin-bottom: 16px; }
-  .connect-heading h1       { margin-bottom: 14px; }
-  .connect-heading .lede    { max-width: 540px; }
-
-  .sources-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
+  .connect-main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 48px;
   }
-  .src-card {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    padding: 26px 28px;
+
+  .connect-header {
+    padding: 100px 0 56px;
+  }
+  .connect-header .eyebrow { margin-bottom: 20px; }
+  .connect-header .page-title { margin-bottom: 14px; }
+  .connect-header .lede { max-width: 480px; }
+
+  /* Sources — refined list, not chunky cards */
+  .sources-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    min-height: 180px;
+  }
+
+  .source-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .source-item:first-child { 
+    border-top: 1px solid var(--border); 
+  }
+
+  .source-item.connected {
     position: relative;
-    transition: background var(--t-fast);
   }
-  .src-card.connected { background: var(--surface); }
-  .src-card.connected::before {
+  .source-item.connected::before {
     content: '';
-    position: absolute; left: 0; top: 0; bottom: 0;
-    width: 2px; background: var(--brand-deep);
+    position: absolute;
+    left: -20px; top: 28px; bottom: 28px;
+    width: 2px;
+    background: var(--layer-1);
   }
 
-  .src-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .src-name { font-size: 16px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
-
-  .src-desc { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
-
-  .src-meta {
-    display: flex; flex-direction: column; gap: 6px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-    margin-top: auto;
+  .source-content { flex: 1; min-width: 0; }
+  
+  .source-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
   }
-  .src-meta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-  .src-meta-label { font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
-  .src-meta-value { font-size: 13px; color: var(--ink); text-align: right; word-break: break-all; font-weight: 500; }
-
-  .src-actions { margin-top: auto; display: flex; gap: 10px; flex-wrap: wrap; }
-
-  .src-unprocessed {
-    display: inline-block;
-    font-size: 10px;
+  .source-name {
+    font-size: 16px;
     font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .source-badge {
+    font-size: 9px;
+    font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--warn);
-    background: var(--warn-bg);
+    padding: 3px 8px;
+  }
+  .source-badge.connected { 
+    color: var(--layer-1); 
+    background: var(--layer-tint); 
+    border: 1px solid var(--layer-2);
+  }
+  .source-badge.unprocessed { 
+    color: var(--warn); 
+    background: var(--warn-bg); 
     border: 1px solid #E9D9A7;
-    padding: 2px 7px;
-    margin-left: 10px;
   }
 
-  .loading-state {
-    padding: 48px 24px;
+  .source-desc {
+    font-size: 14px;
     color: var(--ink-3);
+    line-height: 1.55;
+  }
+
+  .source-account {
+    margin-top: 10px;
     font-size: 13px;
-    text-align: center;
-    border: 1px solid var(--border);
+    color: var(--ink-2);
+  }
+  .source-account strong {
+    font-weight: 500;
+  }
+
+  .source-actions {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .source-connect-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 18px;
     background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    transition: all var(--t-fast);
+  }
+  .source-connect-btn:hover { border-color: var(--ink); }
+
+  .source-disconnect-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 0;
+    background: transparent;
+    color: var(--ink-4);
+    border: none;
+    cursor: pointer;
+    transition: color var(--t-fast);
+  }
+  .source-disconnect-btn:hover { color: var(--danger); }
+
+  .loading-state {
+    padding: 60px 0;
+    color: var(--ink-3);
+    font-size: 14px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  @media (max-width: 640px) {
+    .connect-main { padding: 0 24px; }
+    .connect-header { padding: 60px 0 40px; }
+    .source-item { flex-direction: column; gap: 16px; }
+    .source-actions { align-items: flex-start; flex-direction: row; }
+    .source-item.connected::before { left: -12px; }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -86,18 +155,18 @@
 
 <div id="daat-shell"></div>
 
-<main class="daat-page wide">
+<main class="connect-main">
 
-  <header class="connect-heading">
+  <header class="connect-header">
     <div class="eyebrow" id="pageEyebrow">Step 2 of 3</div>
     <h1 class="page-title" id="pageTitle">Choose your sources</h1>
-    <p class="lede" id="pageSub">Pick the tools Daat should learn from. You can connect one or several — Daat only reads what you grant access to.</p>
+    <p class="lede" id="pageSub">Select the tools Daat should learn from. Daat only reads what you grant access to.</p>
   </header>
 
   <div class="banner" id="oauthBanner" role="status"></div>
 
-  <div class="sources-grid" id="sourcesGrid">
-    <div class="loading-state">Loading…</div>
+  <div class="sources-list" id="sourcesGrid">
+    <div class="loading-state">Loading sources...</div>
   </div>
 
 </main>
@@ -144,8 +213,6 @@ const SOURCES = [
 const SOURCE_LABELS = Object.fromEntries(SOURCES.map(s => [s.key, s.label]));
 let _auth = null;
 let BASE_HEADERS = {};
-// Source-management mode is driven by explicit onboarding state, not data existence.
-// A user whose workspace is 'ready' is here to manage sources, not to onboard.
 let _manageMode = false;
 
 function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -161,7 +228,7 @@ function showOauthBanner() {
     el.textContent = `Connected ${label} successfully.`;
     el.className = 'banner banner-ok visible';
   } else {
-    el.textContent = `We couldn't connect ${label}. Try again.`;
+    el.textContent = `Could not connect ${label}. Please try again.`;
     el.className = 'banner banner-error visible';
   }
   history.replaceState({}, '', window.location.pathname);
@@ -202,28 +269,27 @@ async function loadSources() {
       const conn = rows[i];
       const connected = !!conn;
       const unprocessed = unprocessedKeys.has(s.key);
+      
       return `
-      <div class="src-card ${connected ? 'connected' : ''}" id="card-${s.key}">
-        <div class="src-head">
-          <span class="src-name">${esc(s.label)}${unprocessed ? '<span class="src-unprocessed">Unprocessed</span>' : ''}</span>
-          <span class="badge ${connected ? 'badge-ok' : 'badge-neutral'}">${connected ? 'Connected' : 'Not connected'}</span>
-        </div>
-        <p class="src-desc">${esc(s.desc)}</p>
-        ${connected ? `
-        <div class="src-meta">
-          <div class="src-meta-row">
-            <span class="src-meta-label">Account</span>
-            <span class="src-meta-value">${esc(conn[s.nameField] || '—')}</span>
+      <div class="source-item ${connected ? 'connected' : ''}" id="card-${s.key}">
+        <div class="source-content">
+          <div class="source-header">
+            <span class="source-name">${esc(s.label)}</span>
+            ${connected ? `<span class="source-badge connected">Connected</span>` : ''}
+            ${unprocessed ? `<span class="source-badge unprocessed">Unprocessed</span>` : ''}
           </div>
+          <p class="source-desc">${esc(s.desc)}</p>
+          ${connected && conn[s.nameField] ? `
+            <p class="source-account"><strong>${esc(conn[s.nameField])}</strong></p>
+          ` : ''}
         </div>
-        <div class="src-actions">
-          <button class="btn btn-ghost" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>
+        <div class="source-actions">
+          ${connected ? `
+            <button class="source-disconnect-btn" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>
+          ` : `
+            <button class="source-connect-btn" onclick="connectSource('${s.oauthFn}')">Connect</button>
+          `}
         </div>
-        ` : `
-        <div class="src-actions">
-          <button class="btn btn-secondary" onclick="connectSource('${s.oauthFn}')">Connect ${esc(s.label)}</button>
-        </div>
-        `}
       </div>`;
     }).join('');
   } catch (e) {
@@ -259,7 +325,7 @@ function updateContinueBar(connectedCount, unprocessedKeys) {
       btn.disabled = false;
       btn.onclick = () => startRebuild(btn);
 
-      secondary.textContent = 'Back to Daat';
+      secondary.textContent = 'Back to Ask';
       secondary.style.display = '';
       secondary.onclick = () => { window.location.href = '/ask'; };
       return;
@@ -269,7 +335,7 @@ function updateContinueBar(connectedCount, unprocessedKeys) {
       ? `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected.`
       : 'No sources connected.';
     status.className = 'action-bar-status';
-    label.textContent = 'Back to Daat';
+    label.textContent = 'Back to Ask';
     btn.disabled = false;
     btn.onclick = () => { window.location.href = '/ask'; };
 
@@ -287,7 +353,7 @@ function updateContinueBar(connectedCount, unprocessedKeys) {
     btn.disabled = true;
     label.textContent = 'Continue';
   } else {
-    status.textContent = `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected. Ready when you are.`;
+    status.textContent = `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected.`;
     status.className = 'action-bar-status ok';
     btn.disabled = false;
     label.textContent = 'Continue';
@@ -323,7 +389,7 @@ async function disconnectSource(key, table) {
 function applyManageModeChrome() {
   document.getElementById('pageEyebrow').textContent = 'Sources';
   document.getElementById('pageTitle').textContent = 'Your sources';
-  document.getElementById('pageSub').textContent = 'Connect new sources or disconnect existing ones. Changes take effect immediately.';
+  document.getElementById('pageSub').textContent = 'Connect new sources or disconnect existing ones.';
 }
 
 async function init() {
@@ -335,8 +401,6 @@ async function init() {
     'Content-Type': 'application/json',
   };
   _manageMode = _auth.onboardingState === 'ready';
-  // In onboarding, hide primary nav and keep the focused flow chrome.
-  // In manage mode, show full nav with Connect active.
   daatShell({ active: _manageMode ? 'connect' : null, inFlow: !_manageMode });
   if (_manageMode) applyManageModeChrome();
   showOauthBanner();

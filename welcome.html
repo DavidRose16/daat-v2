@@ -9,41 +9,81 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .welcome-hero {
-    display: flex;
-    flex-direction: column;
-    gap: 36px;
-    margin-bottom: 56px;
+  .welcome-main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 0 48px;
   }
+
+  .welcome-hero {
+    padding: 120px 0 64px;
+  }
+
   .welcome-mark {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     display: block;
+    margin-bottom: 40px;
   }
+
+  .welcome-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--layer-2);
+    margin-bottom: 20px;
+  }
+
+  .welcome-title {
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 24px;
+  }
+
   .welcome-body {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1.7;
     color: var(--ink-2);
-    max-width: 560px;
   }
-  .welcome-body strong { color: var(--ink); font-weight: 500; }
+  .welcome-body strong { 
+    color: var(--ink); 
+    font-weight: 500; 
+  }
 
   .first-step {
     border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    padding: 24px 0;
-    margin: 40px 0 48px;
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 24px;
-    align-items: baseline;
+    padding: 28px 0;
+    margin: 0 0 48px;
   }
-  @media (max-width: 560px) {
-    .first-step { grid-template-columns: 1fr; gap: 10px; }
+  .first-step-label { 
+    font-size: 10px; 
+    font-weight: 600; 
+    letter-spacing: 0.14em; 
+    text-transform: uppercase; 
+    color: var(--layer-2); 
+    margin-bottom: 12px;
   }
-  .first-step-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
-  .first-step-text  { font-size: 15px; line-height: 1.65; color: var(--ink); }
+  .first-step-text { 
+    font-size: 15px; 
+    line-height: 1.65; 
+    color: var(--ink); 
+  }
+
+  .welcome-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .welcome-main { padding: 0 24px; }
+    .welcome-hero { padding: 80px 0 48px; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
@@ -52,14 +92,12 @@
 
 <div id="daat-shell"></div>
 
-<main class="daat-page">
+<main class="welcome-main">
 
   <section class="welcome-hero">
-    <img class="welcome-mark" src="/assets/Daat-Logo.png" alt="Daat">
-    <div>
-      <div class="eyebrow" style="margin-bottom:18px">Welcome to Daat</div>
-      <h1 class="page-title">Know what's actually happening in your organization.</h1>
-    </div>
+    <img class="welcome-mark" src="/assets/Daat-Logo.png" alt="">
+    <div class="welcome-eyebrow">Welcome to Daat</div>
+    <h1 class="welcome-title">Know what's actually happening in your organization.</h1>
     <p class="welcome-body">
       Daat reads directly from the tools your team already uses — Slack, Notion, QuickBooks, Google Workspace —
       and turns scattered signal into <strong>clear, grounded answers</strong> about decisions, blockers, and context.
@@ -67,13 +105,13 @@
   </section>
 
   <div class="first-step">
-    <div class="first-step-label">First step</div>
+    <div class="first-step-label">Step 1</div>
     <div class="first-step-text">
-      Connect the sources you want Daat to learn from. You choose which ones &mdash; Daat only reads what you grant access to.
+      Connect the sources you want Daat to learn from. You choose which ones — Daat only reads what you grant access to.
     </div>
   </div>
 
-  <button id="ctaBtn" class="btn btn-primary">
+  <button id="ctaBtn" class="btn btn-primary welcome-cta">
     Connect your sources <span class="btn-arrow">→</span>
   </button>
 
@@ -86,8 +124,6 @@
   if (!auth) return;
 
   document.getElementById('ctaBtn').addEventListener('click', async () => {
-    // Advance state so a refresh / revisit lands on /connect, not /welcome.
-    // Only advance if still in the welcome stage — don't regress a further state.
     if (auth.onboardingState === 'welcome') {
       try { await daatSetOnboardingState(auth, 'connect'); } catch (e) { /* proceed anyway */ }
     }

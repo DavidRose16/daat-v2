@@ -9,89 +9,163 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .proc-heading { margin-bottom: 44px; }
-  .proc-heading .eyebrow { margin-bottom: 16px; }
-  .proc-heading h1 { margin-bottom: 12px; }
+  .processing-main {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
 
-  /* Source list — editorial rows, not fat cards */
-  .source-list { display: flex; flex-direction: column; margin-bottom: 48px; }
+  .processing-header {
+    padding: 100px 0 56px;
+  }
+  .processing-header .eyebrow { margin-bottom: 20px; }
+  .processing-header .page-title { margin-bottom: 14px; }
+
+  /* Sources being processed */
+  .source-list {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 48px;
+  }
+
   .source-row {
-    display: flex; align-items: center; gap: 20px;
-    padding: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 22px 0;
     border-bottom: 1px solid var(--border);
   }
   .source-row:first-child { border-top: 1px solid var(--border); }
 
   .source-meta { flex: 1; min-width: 0; }
-  .source-name { font-size: 15px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
-  .source-status { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
-  .source-status.ok  { color: var(--brand-deep); }
+  .source-name { 
+    font-size: 15px; 
+    font-weight: 500; 
+    color: var(--ink); 
+    letter-spacing: -0.005em; 
+  }
+  .source-status { 
+    font-size: 13px; 
+    color: var(--ink-3); 
+    line-height: 1.5; 
+    margin-top: 4px; 
+  }
+  .source-status.ok  { color: var(--layer-1); }
   .source-status.err { color: var(--danger); }
 
-  .source-indicator { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 20px; }
-  .check-mark { color: var(--brand-deep); font-size: 16px; font-weight: 500; line-height: 1; }
-  .cross-mark { color: var(--danger); font-size: 16px; font-weight: 500; line-height: 1; }
+  .source-indicator { 
+    flex-shrink: 0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 24px; 
+  }
+  .check-mark { color: var(--layer-1); font-size: 18px; font-weight: 500; line-height: 1; }
+  .cross-mark { color: var(--danger); font-size: 18px; font-weight: 500; line-height: 1; }
 
-  /* Build panel — minimal, calm, premium */
-  .build-panel { border-top: 2px solid var(--ink); padding-top: 24px; margin-bottom: 32px; }
+  /* Build panel — minimal progress */
+  .build-panel { 
+    border-top: 2px solid var(--layer-1); 
+    padding-top: 28px; 
+    margin-bottom: 32px; 
+  }
   .build-panel.phase-hidden { display: none; }
 
   .build-header {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 16px; margin-bottom: 14px;
+    display: flex; 
+    align-items: baseline; 
+    justify-content: space-between;
+    gap: 16px; 
+    margin-bottom: 16px;
   }
   .build-label {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--ink-3);
+    font-size: 11px; 
+    font-weight: 600; 
+    letter-spacing: 0.14em;
+    text-transform: uppercase; 
+    color: var(--ink-3);
   }
   .build-count {
-    font-size: 14px; font-weight: 500; color: var(--ink);
-    font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+    font-size: 14px; 
+    font-weight: 500; 
+    color: var(--ink);
+    font-variant-numeric: tabular-nums; 
+    letter-spacing: -0.005em;
   }
 
   .phase-text {
-    font-size: 14px; color: var(--ink-2); line-height: 1.55;
-    display: flex; align-items: center; gap: 12px;
-    margin-top: 20px;
+    font-size: 14px; 
+    color: var(--ink-2); 
+    line-height: 1.55;
+    display: flex; 
+    align-items: center; 
+    gap: 14px;
+    margin-top: 24px;
   }
   .phase-hidden { display: none !important; }
   .phase-error-glyph {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 18px; height: 18px;
-    background: var(--danger-bg); color: var(--danger);
-    font-size: 12px; font-weight: 600;
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center;
+    width: 20px; 
+    height: 20px;
+    background: var(--danger-bg); 
+    color: var(--danger);
+    font-size: 12px; 
+    font-weight: 600;
     border: 1px solid #E59A94;
     flex-shrink: 0;
   }
 
-  /* Success surface */
+  /* Success panel */
   .success-panel {
-    border: 1px solid var(--brand);
-    border-top: 2px solid var(--brand-deep);
+    border: 1px solid var(--layer-2);
+    border-top: 2px solid var(--layer-1);
     background: var(--surface);
-    padding: 40px 36px;
-    display: flex; flex-direction: column; gap: 12px;
+    padding: 56px 48px;
+    text-align: center;
   }
   .success-eyebrow {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--brand-deep);
+    font-size: 11px; 
+    font-weight: 600; 
+    letter-spacing: 0.14em;
+    text-transform: uppercase; 
+    color: var(--layer-1);
+    margin-bottom: 20px;
   }
   .success-title {
-    font-size: 24px; font-weight: 500; letter-spacing: -0.012em;
-    line-height: 1.25; color: var(--ink);
+    font-size: 26px; 
+    font-weight: 500; 
+    letter-spacing: -0.02em;
+    line-height: 1.25; 
+    color: var(--ink);
+    margin-bottom: 14px;
   }
-  .success-body { font-size: 15px; line-height: 1.65; color: var(--ink-2); }
+  .success-body { 
+    font-size: 15px; 
+    line-height: 1.65; 
+    color: var(--ink-2); 
+    max-width: 380px;
+    margin: 0 auto;
+  }
 
   .error-box {
     display: none;
-    border: 1px solid #E59A94;
+    border-left: 2px solid var(--danger);
     background: var(--danger-bg);
     color: var(--danger);
-    padding: 14px 18px;
-    font-size: 14px; line-height: 1.55;
-    margin-top: 20px;
+    padding: 18px 22px;
+    font-size: 14px; 
+    line-height: 1.55;
+    margin-top: 24px;
   }
   .error-box.visible { display: block; }
+
+  @media (max-width: 640px) {
+    .processing-main { padding: 0 24px; }
+    .processing-header { padding: 60px 0 40px; }
+    .success-panel { padding: 40px 28px; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
@@ -100,27 +174,25 @@
 
 <div id="daat-shell"></div>
 
-<main class="daat-page">
+<main class="processing-main">
 
-  <header class="proc-heading">
-    <div class="eyebrow" id="pageEyebrow">Preparing your workspace</div>
+  <header class="processing-header">
+    <div class="eyebrow" id="pageEyebrow">Reading</div>
     <h1 class="page-title" id="pageTitle">Daat is reading your material</h1>
-    <p class="lede" id="pageSub">Pulling in what you connected and organizing it into a workspace Daat can reason over. This usually takes a minute.</p>
+    <p class="lede" id="pageSub">Pulling in what you connected and organizing it into a workspace Daat can reason over.</p>
   </header>
 
-  <!-- Phase 1: ingest rows -->
   <section class="source-list" id="sourceList"></section>
 
-  <!-- Phase 2: comprehension progress -->
   <section class="build-panel phase-hidden" id="buildPanel">
     <div class="build-header">
-      <span class="build-label">Comprehension</span>
+      <span class="build-label">Building understanding</span>
       <span class="build-count" id="progressCount">0 / 0</span>
     </div>
     <div class="progress-rail"><div class="progress-fill" id="progressFill"></div></div>
     <div class="phase-text" id="phaseText">
       <span class="spinner"></span>
-      <span>Starting…</span>
+      <span>Starting...</span>
     </div>
   </section>
 
@@ -128,7 +200,7 @@
 </main>
 
 <div class="action-bar">
-  <span class="action-bar-status" id="continueStatus">Preparing your workspace…</span>
+  <span class="action-bar-status" id="continueStatus">Preparing your workspace...</span>
   <div class="action-bar-right">
     <button class="btn btn-ghost" id="secondaryBtn" style="display:none"></button>
     <button class="btn btn-primary" id="continueBtn" disabled>
@@ -146,7 +218,6 @@ const INGEST_SOURCES = [
   { key: 'google',     table: 'connections_google',     label: 'Google Workspace',  ingestFn: 'google-ingest'     },
 ];
 
-// Sources that produce comprehensions (excludes google = access).
 const BUILD_SOURCES = ['slack', 'quickbooks', 'notion'];
 const PER_SOURCE_LIMIT = { slack: 8, quickbooks: 8, notion: 2 };
 const SOURCE_LABEL = { slack: 'Slack', quickbooks: 'QuickBooks', notion: 'Notion' };
@@ -177,10 +248,10 @@ function renderSourceRow(source, state, detail) {
     state === 'running' ? '<span class="spinner"></span>' :
     state === 'done'    ? '<span class="check-mark">✓</span>' :
     state === 'error'   ? '<span class="cross-mark">×</span>' :
-    '<span class="spinner" style="opacity:.3"></span>';
+    '<span class="spinner" style="opacity:.25"></span>';
   const statusText =
     state === 'waiting' ? 'Queued' :
-    state === 'running' ? 'Reading…' :
+    state === 'running' ? 'Reading...' :
     state === 'done'    ? detail :
     state === 'error'   ? detail :
     '';
@@ -238,7 +309,7 @@ async function showSuccessAndAdvance(totalBuilt) {
   panel.className = 'success-panel';
   panel.innerHTML = `
     <div class="success-eyebrow">Workspace ready</div>
-    <div class="success-title">Your workspace is prepared.</div>
+    <div class="success-title">Your workspace is prepared</div>
     <div class="success-body">Daat has read and organized ${totalBuilt.toLocaleString()} item${totalBuilt !== 1 ? 's' : ''}. You can now ask it questions about your organization.</div>
   `;
   document.getElementById('pageEyebrow').textContent = 'Complete';
@@ -339,9 +410,6 @@ async function countAssembly({ source, pendingOnly }) {
   const sourceFilter = source
     ? `&signals_core.source=eq.${source}`
     : `&signals_core.source=neq.google`;
-  // Pending = still unprocessed AND not yet at the attempts cap. Rows at the
-  // cap remain in the table for inspection but don't count as pending, so a
-  // poison row can't hold progress hostage or trigger the stall detector.
   const pendingFilter = pendingOnly ? '&comprehended_at=is.null&attempts=lt.3' : '';
   const url = `${SB_URL}/rest/v1/comprehensions_assembly`
     + `?owner_id=eq.${_auth.workspaceId}`
@@ -379,7 +447,7 @@ async function runComprehendBatch(source) {
 
 async function phaseBuild() {
   document.getElementById('buildPanel').classList.remove('phase-hidden');
-  setPhase('Counting your signals…');
+  setPhase('Counting signals...');
 
   const total = await countAssembly({ source: null, pendingOnly: false });
   if (total === 0) {
@@ -395,7 +463,7 @@ async function phaseBuild() {
 
   let pendingAll = await countAssembly({ source: null, pendingOnly: true });
   setProgress(total - pendingAll, total);
-  setPhase(`Reading ${total} item${total !== 1 ? 's' : ''}…`);
+  setPhase(`Reading ${total} item${total !== 1 ? 's' : ''}...`);
 
   for (const source of BUILD_SOURCES) {
     let sourcePending = await countAssembly({ source, pendingOnly: true });
@@ -438,7 +506,7 @@ async function phaseBuild() {
     }
   }
 
-  setPhase('Finalizing your workspace…');
+  setPhase('Finalizing...');
   const built = await countComprehensions();
   await showSuccessAndAdvance(built);
   return true;

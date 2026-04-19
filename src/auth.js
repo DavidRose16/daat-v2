@@ -1,6 +1,5 @@
 // Shared auth utilities — loaded as a synchronous script before each page script.
 // Defines globals: SB_URL, SB_ANON, FN_URL, daatGetAuth(), daatSignOut(), daatSetOnboardingState()
-// Also injects .daat-signout button styles.
 
 const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
@@ -78,8 +77,8 @@ function daatShell({ active = null, inFlow = false } = {}) {
         <span class="daat-brand-word">Daat</span>
       </a>
       <nav class="daat-nav" aria-label="Primary">
-        <a class="${cls('ask')}"      href="/ask">Ask</a>
-        <a class="${cls('connect')}"  href="/connect">Connect</a>
+        <a class="${cls('ask')}" href="/ask">Ask</a>
+        <a class="${cls('connect')}" href="/connect">Connect</a>
         <a class="${cls('lab')} demoted" href="/lab">Lab</a>
       </nav>
       <div class="daat-topbar-right">

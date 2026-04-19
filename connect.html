@@ -10,17 +10,18 @@
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
   .connect-heading { margin-bottom: 48px; max-width: 640px; }
-  .connect-heading .eyebrow { margin-bottom: 16px; }
+  .connect-heading .eyebrow { margin-bottom: 18px; }
   .connect-heading h1       { margin-bottom: 14px; }
-  .connect-heading .lede    { max-width: 560px; }
+  .connect-heading .lede    { max-width: 580px; }
 
   .loading-state {
     padding: 60px 0;
     color: var(--ink-3);
-    font-size: 13px;
+    font-size: 14px;
     text-align: center;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -40,7 +41,7 @@
 
   <div class="banner" id="oauthBanner" role="status"></div>
 
-  <div class="source-stack" id="sourcesGrid">
+  <div class="source-modules" id="sourcesGrid">
     <div class="loading-state">Loading…</div>
   </div>
 
@@ -153,33 +154,33 @@ async function loadSources() {
         : 'Not connected';
 
       return `
-      <article class="source-row" data-state="${state}" id="card-${s.key}">
-        <div class="source-row-mark">${esc(s.label.charAt(0))}</div>
-        <div class="source-row-main">
-          <header class="source-row-header">
-            <h3 class="source-row-title">${esc(s.label)}</h3>
-            <span class="source-row-state">${stateLabel}</span>
+      <article class="source-module" data-state="${state}" id="card-${s.key}">
+        <div class="source-mark">${esc(s.label.charAt(0))}</div>
+        <div class="source-body">
+          <header class="source-header">
+            <h3 class="source-title">${esc(s.label)}</h3>
+            <span class="source-state"><span class="source-state-dot"></span>${stateLabel}</span>
           </header>
-          <p class="source-row-desc">${esc(s.desc)}</p>
+          <p class="source-desc">${esc(s.desc)}</p>
           ${connected ? `
-          <div class="source-row-meta">
-            <div class="source-row-meta-item">
-              <span class="source-row-meta-key">Account</span>
-              <span class="source-row-meta-val">${esc(conn[s.nameField] || '—')}</span>
-            </div>
+          <div class="source-meta">
+            <span class="source-meta-item">
+              <span class="source-meta-key">Account</span>
+              <span class="source-meta-val">${esc(conn[s.nameField] || '—')}</span>
+            </span>
           </div>
           ` : ''}
         </div>
-        <div class="source-row-action">
+        <div class="source-action">
           ${connected
             ? `<button class="btn btn-danger" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>`
-            : `<button class="btn btn-sm btn-secondary" onclick="connectSource('${s.oauthFn}')">Connect <span class="btn-arrow">→</span></button>`
+            : `<button class="btn btn-sm btn-primary" onclick="connectSource('${s.oauthFn}')">Connect <span class="btn-arrow">→</span></button>`
           }
         </div>
       </article>`;
     }).join('');
   } catch (e) {
-    grid.innerHTML = `<div class="loading-state" style="color:var(--danger);border-color:#E59A94">Failed to load connections: ${esc(e.message)}</div>`;
+    grid.innerHTML = `<div class="loading-state" style="color:var(--danger);background:var(--danger-bg)">Failed to load connections: ${esc(e.message)}</div>`;
   }
 }
 

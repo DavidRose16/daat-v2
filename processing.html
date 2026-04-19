@@ -9,87 +9,115 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .proc-heading { margin-bottom: 44px; }
+  .proc-heading { margin-bottom: 44px; max-width: 640px; }
   .proc-heading .eyebrow { margin-bottom: 16px; }
-  .proc-heading h1 { margin-bottom: 12px; }
+  .proc-heading h1 { margin-bottom: 14px; }
 
-  /* Source list — editorial rows, not fat cards */
-  .source-list { display: flex; flex-direction: column; margin-bottom: 48px; }
+  /* Source status list — soft floating rows */
+  .source-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 36px; }
   .source-row {
     display: flex; align-items: center; gap: 20px;
-    padding: 20px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 16px 22px;
+    background: var(--surface);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-0);
+    transition: box-shadow var(--t-mid) var(--ease);
   }
-  .source-row:first-child { border-top: 1px solid var(--border); }
 
   .source-meta { flex: 1; min-width: 0; }
-  .source-name { font-size: 15px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
-  .source-status { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
+  .source-name { font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: -0.008em; }
+  .source-status { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; letter-spacing: -0.003em; }
   .source-status.ok  { color: var(--brand-deep); }
   .source-status.err { color: var(--danger); }
 
-  .source-indicator { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 20px; }
-  .check-mark { color: var(--brand-deep); font-size: 16px; font-weight: 500; line-height: 1; }
-  .cross-mark { color: var(--danger); font-size: 16px; font-weight: 500; line-height: 1; }
+  .source-indicator { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; }
+  .check-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--brand-tint); color: var(--brand-deep);
+    font-size: 13px; font-weight: 600; line-height: 1;
+  }
+  .cross-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--danger-bg); color: var(--danger);
+    font-size: 14px; font-weight: 600; line-height: 1;
+  }
 
-  /* Build panel — minimal, calm, premium */
-  .build-panel { border-top: 2px solid var(--ink); padding-top: 24px; margin-bottom: 32px; }
+  /* Build panel — soft floating surface */
+  .build-panel {
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    transition: box-shadow var(--t-mid) var(--ease);
+  }
   .build-panel.phase-hidden { display: none; }
 
   .build-header {
     display: flex; align-items: baseline; justify-content: space-between;
-    gap: 16px; margin-bottom: 14px;
+    gap: 16px; margin-bottom: 16px;
   }
   .build-label {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--ink-3);
   }
   .build-count {
-    font-size: 14px; font-weight: 500; color: var(--ink);
-    font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+    font-size: 15px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
   }
 
   .phase-text {
     font-size: 14px; color: var(--ink-2); line-height: 1.55;
     display: flex; align-items: center; gap: 12px;
     margin-top: 20px;
+    letter-spacing: -0.003em;
   }
   .phase-hidden { display: none !important; }
   .phase-error-glyph {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 18px; height: 18px;
+    width: 22px; height: 22px; border-radius: 50%;
     background: var(--danger-bg); color: var(--danger);
-    font-size: 12px; font-weight: 600;
-    border: 1px solid #E59A94;
+    font-size: 13px; font-weight: 600;
     flex-shrink: 0;
   }
 
-  /* Success surface */
+  /* Success surface — brand-tinted soft module */
   .success-panel {
-    border: 1px solid var(--brand);
-    border-top: 2px solid var(--brand-deep);
-    background: var(--surface);
-    padding: 40px 36px;
+    background: linear-gradient(135deg, rgba(232, 248, 239, 0.85), rgba(214, 241, 225, 0.55));
+    border-radius: var(--r-lg);
+    box-shadow: inset 0 0 0 1px rgba(34, 176, 122, 0.22), var(--shadow-1);
+    padding: 44px 40px;
     display: flex; flex-direction: column; gap: 12px;
   }
   .success-eyebrow {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--brand-deep);
   }
+  .success-eyebrow::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 0 4px rgba(34, 176, 122, 0.22);
+  }
   .success-title {
-    font-size: 24px; font-weight: 500; letter-spacing: -0.012em;
-    line-height: 1.25; color: var(--ink);
+    font-size: 26px; font-weight: 600; letter-spacing: -0.018em;
+    line-height: 1.2; color: var(--ink);
   }
   .success-body { font-size: 15px; line-height: 1.65; color: var(--ink-2); }
 
   .error-box {
     display: none;
-    border: 1px solid #E59A94;
     background: var(--danger-bg);
     color: var(--danger);
-    padding: 14px 18px;
+    padding: 16px 20px;
     font-size: 14px; line-height: 1.55;
     margin-top: 20px;
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-0);
   }
   .error-box.visible { display: block; }
 </style>

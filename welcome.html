@@ -13,7 +13,7 @@
     display: flex;
     flex-direction: column;
     gap: 40px;
-    margin-bottom: 64px;
+    margin-bottom: 56px;
   }
   .welcome-mark {
     width: 64px;
@@ -22,28 +22,15 @@
     display: block;
   }
   .welcome-body {
-    font-size: 17px;
-    line-height: 1.7;
+    font-size: 18px;
+    line-height: 1.65;
     color: var(--ink-2);
-    max-width: 560px;
+    max-width: 580px;
+    letter-spacing: -0.004em;
   }
-  .welcome-body strong { color: var(--ink); font-weight: 500; }
+  .welcome-body strong { color: var(--ink); font-weight: 600; }
 
-  .first-step {
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    padding: 28px 0;
-    margin: 48px 0 56px;
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 24px;
-    align-items: baseline;
-  }
-  @media (max-width: 560px) {
-    .first-step { grid-template-columns: 1fr; gap: 10px; padding: 20px 0; }
-  }
-  .first-step-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
-  .first-step-text  { font-size: 15px; line-height: 1.65; color: var(--ink); }
+  .first-step { margin-bottom: 56px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
@@ -66,9 +53,9 @@
     </p>
   </section>
 
-  <div class="first-step">
-    <div class="first-step-label">First step</div>
-    <div class="first-step-text">
+  <div class="info-module first-step">
+    <div class="info-module-label">First step</div>
+    <div class="info-module-text">
       Connect the sources you want Daat to learn from. You choose which ones &mdash; Daat only reads what you grant access to.
     </div>
   </div>

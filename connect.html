@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Connect — Daat</title>
+<title>Connect sources — Daat</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -18,48 +18,46 @@
 }
 html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
 
-/* Nav */
-.nav { display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 20px; position: sticky; top: 0; z-index: 50; }
-.nav-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); padding: 12px 20px 12px 0; border-right: 1px solid var(--border); margin-right: 4px; flex-shrink: 0; }
-.nav-tab { font-size: 12px; font-weight: 500; padding: 14px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; }
-.nav-tab:hover { color: var(--text-dim); }
-.nav-tab.active { color: var(--text); border-bottom-color: #555; }
-.nav-spacer { flex: 1; }
+/* Thin top bar */
+.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
+.topbar-spacer { flex: 1; }
+
+/* Stepper */
+.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 10px; }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
+}
+.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
+.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
+.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
+.step.active .step-label { color: var(--text); font-weight: 600; }
+.step.done .step-label { color: #4ade80; }
+.step-divider { width: 30px; height: 1px; background: var(--border2); }
 
 /* Page */
-.page { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+.page { max-width: 760px; margin: 0 auto; padding: 48px 24px 120px; }
+.page-heading { margin-bottom: 28px; text-align: center; }
+.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; color: var(--text); margin-bottom: 10px; }
+.page-sub { font-size: 13px; color: var(--text-dim); line-height: 1.65; max-width: 480px; margin: 0 auto; }
 
-/* Ready banner */
-.ready-banner {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  background: #0a140a;
-  border: 1px solid #1a3a1a;
-  border-radius: 9px;
-  padding: 14px 20px;
-  margin-bottom: 36px;
+/* OAuth feedback banner */
+.oauth-banner {
+  display: none; align-items: center; gap: 12px;
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;
+  font-size: 13px;
 }
-.ready-banner.visible { display: flex; }
-.ready-text { font-size: 13px; color: #4ade80; font-weight: 500; }
-.ready-link {
-  font-size: 13px; font-weight: 600; color: #4ade80;
-  text-decoration: none; white-space: nowrap;
-  padding: 6px 16px; border: 1px solid #1a4d2e; border-radius: 6px;
-  background: #0d2b1a; transition: background .12s;
-}
-.ready-link:hover { background: #122e1e; }
-
-/* Page heading */
-.page-heading { margin-bottom: 32px; }
-.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); margin-bottom: 8px; }
-.page-sub { font-size: 13px; color: var(--text-dimmer); line-height: 1.6; max-width: 480px; }
+.oauth-banner.visible { display: flex; }
+.oauth-banner.success { background: #0d2b1a; border: 1px solid #1a4d2e; color: #4ade80; }
+.oauth-banner.error   { background: #1a0808; border: 1px solid #4d1a1a; color: #f87171; }
 
 /* Source grid */
-.sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 28px; }
 
-/* Source card */
 .src-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -69,7 +67,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 }
 .src-card.connected { border-color: #1a3a1a; }
 
-.src-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.src-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .src-name { font-size: 15px; font-weight: 600; color: var(--text); }
 .src-badge {
   font-size: 10px; font-weight: 700; letter-spacing: 0.05em; padding: 3px 9px;
@@ -80,13 +78,12 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 .src-desc { font-size: 12px; color: var(--text-dimmer); line-height: 1.55; margin-bottom: 14px; }
 
-.src-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+.src-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
 .src-meta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .src-meta-label { font-size: 11px; color: #444; }
 .src-meta-value { font-size: 12px; color: var(--text-dim); text-align: right; word-break: break-all; }
 .src-meta-value.prominent { color: var(--text); font-weight: 500; }
 
-/* Actions */
 .src-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .btn-connect {
   padding: 7px 16px; font-size: 12px; font-weight: 600;
@@ -94,20 +91,6 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   color: #60c8f8; cursor: pointer; transition: background .12s;
 }
 .btn-connect:hover { background: #0d3352; }
-.btn-sync {
-  padding: 7px 14px; font-size: 12px; font-weight: 500;
-  border-radius: 6px; border: 1px solid var(--border2); background: #141414;
-  color: var(--text-dim); cursor: pointer; transition: background .12s, color .12s;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.btn-sync:hover:not(:disabled) { background: #1c1c1c; color: var(--text); }
-.btn-sync:disabled { opacity: .4; cursor: not-allowed; }
-.sync-spinner {
-  width: 10px; height: 10px; border: 2px solid #55555540;
-  border-top-color: var(--text-dim); border-radius: 50%;
-  animation: spin .7s linear infinite; display: none;
-}
-.btn-sync.syncing .sync-spinner { display: block; }
 .btn-disconnect {
   padding: 7px 12px; font-size: 11px; font-weight: 500;
   border-radius: 6px; border: 1px solid #3a1a1a; background: transparent;
@@ -115,19 +98,27 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 }
 .btn-disconnect:hover { color: #f87171; border-color: #5a2a2a; }
 
-/* Sync status */
-.src-sync-status {
-  margin-top: 12px;
-  font-size: 12px;
-  color: var(--text-dimmer);
-  min-height: 18px;
-  line-height: 1.5;
+/* Sticky footer with Continue */
+.continue-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,15,15,0.94); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.src-sync-status.ok  { color: #4ade80; }
-.src-sync-status.err { color: #f87171; }
+.continue-status { font-size: 12px; color: var(--text-dimmer); }
+.continue-status.ready { color: #4ade80; }
+.continue-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; background: #e2e2e2; color: #0f0f0f;
+  font-size: 13px; font-weight: 600; border-radius: 8px;
+  border: none; cursor: pointer; transition: background .12s, opacity .12s;
+}
+.continue-btn:hover:not(:disabled) { background: #fff; }
+.continue-btn:disabled { opacity: .35; cursor: not-allowed; }
 
 /* Loading */
-.loading-state { padding: 32px 0; color: #333; font-size: 13px; }
+.loading-state { padding: 32px 0; color: #333; font-size: 13px; text-align: center; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 ::-webkit-scrollbar { width: 5px; }
@@ -138,30 +129,45 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 </head>
 <body>
 
-<div class="nav">
-  <span class="nav-brand">Daat</span>
-  <a href="/ask"     class="nav-tab">Ask</a>
-  <a href="/connect" class="nav-tab active">Connect</a>
-  <span class="nav-spacer"></span>
+<div class="topbar">
+  <span class="topbar-brand">Daat</span>
+  <span class="topbar-spacer"></span>
   <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+</div>
+
+<div class="stepper">
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
+  <div class="step-divider"></div>
+  <div class="step active"><span class="step-dot">2</span><span class="step-label">Connect</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">3</span><span class="step-label">Ingest</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">4</span><span class="step-label">Build</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">5</span><span class="step-label">Ask</span></div>
 </div>
 
 <div class="page">
 
-  <div class="ready-banner" id="readyBanner">
-    <span class="ready-text">You're set up. Start asking questions.</span>
-    <a href="/ask" class="ready-link">Ask Daat →</a>
-  </div>
-
   <div class="page-heading">
     <div class="page-title">Connect your sources</div>
-    <p class="page-sub">Connect at least one source. Daat reads your data and answers questions about what's actually happening in your organization.</p>
+    <p class="page-sub">Pick the tools Daat should learn from. You can connect one or several — Daat only reads what you grant access to.</p>
   </div>
+
+  <div class="oauth-banner" id="oauthBanner"></div>
 
   <div class="sources-grid" id="sourcesGrid">
     <div class="loading-state">Loading…</div>
   </div>
 
+</div>
+
+<div class="continue-bar">
+  <span class="continue-status" id="continueStatus">Connect at least one source to continue.</span>
+  <button class="continue-btn" id="continueBtn" disabled>
+    <span id="continueLabel">Continue</span>
+    <span>→</span>
+  </button>
 </div>
 
 <script>
@@ -170,41 +176,52 @@ const SOURCES = [
     key: 'slack',        table: 'connections_slack',
     label: 'Slack',      desc: 'Messages, threads, and discussions from your workspace.',
     nameField: 'workspace_name', subField: 'workspace_domain',
-    color: '#38bdf8',    ingestFn: 'slack-ingest', oauthFn: 'slack-oauth-start',
+    color: '#38bdf8',    oauthFn: 'slack-oauth-start',
   },
   {
     key: 'notion',       table: 'connections_notion',
     label: 'Notion',     desc: 'Pages, databases, and documentation.',
     nameField: 'workspace_name', subField: 'owner_email',
-    color: '#a78bfa',    ingestFn: 'notion-ingest', oauthFn: 'notion-oauth-start',
+    color: '#a78bfa',    oauthFn: 'notion-oauth-start',
   },
   {
     key: 'quickbooks',   table: 'connections_quickbooks',
     label: 'QuickBooks', desc: 'Invoices, purchases, and financial transactions.',
     nameField: 'company_name', subField: 'company_email',
-    color: '#4ade80',    ingestFn: 'quickbooks-ingest', oauthFn: 'quickbooks-oauth-start',
+    color: '#4ade80',    oauthFn: 'quickbooks-oauth-start',
   },
   {
     key: 'google',       table: 'connections_google',
     label: 'Google Workspace', desc: 'Connected third-party apps and access grants.',
     nameField: 'organization_name', subField: 'domain',
-    color: '#fb923c',    ingestFn: 'google-ingest', oauthFn: 'google-oauth-start',
+    color: '#fb923c',    oauthFn: 'google-oauth-start',
   },
 ];
 
+const SOURCE_LABELS = Object.fromEntries(SOURCES.map(s => [s.key, s.label]));
 let _auth = null;
 let BASE_HEADERS = {};
-
-function relTime(ts) {
-  if (!ts) return 'Never';
-  const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-  if (s < 60)    return 'Just now';
-  if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
+let _returningUser = false; // already has comprehensions → Continue goes to /ask
 
 function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function showOauthBanner() {
+  const p = new URLSearchParams(window.location.search);
+  const integration = p.get('integration');
+  const status = p.get('status');
+  if (!integration) return;
+  const el = document.getElementById('oauthBanner');
+  const label = SOURCE_LABELS[integration] || integration;
+  if (status === 'success') {
+    el.textContent = `Connected ${label} successfully.`;
+    el.className = 'oauth-banner success visible';
+  } else {
+    el.textContent = `We couldn't connect ${label}. Try again.`;
+    el.className = 'oauth-banner error visible';
+  }
+  // Clean URL
+  history.replaceState({}, '', window.location.pathname);
+}
 
 async function loadSources() {
   const grid = document.getElementById('sourcesGrid');
@@ -215,9 +232,8 @@ async function loadSources() {
           .then(r => r.json()).then(d => d[0] || null)
       )
     );
-
     const connectedCount = rows.filter(Boolean).length;
-    document.getElementById('readyBanner').classList.toggle('visible', connectedCount > 0);
+    updateContinueBar(connectedCount);
 
     grid.innerHTML = SOURCES.map((s, i) => {
       const conn = rows[i];
@@ -235,19 +251,10 @@ async function loadSources() {
             <span class="src-meta-label">Account</span>
             <span class="src-meta-value prominent">${esc(conn[s.nameField] || '—')}</span>
           </div>
-          <div class="src-meta-row">
-            <span class="src-meta-label">Last synced</span>
-            <span class="src-meta-value">${relTime(conn.last_synced_at)}</span>
-          </div>
         </div>
         <div class="src-actions">
-          <button class="btn-sync" id="sync-${s.key}" onclick="runSync('${s.key}', '${s.ingestFn}')">
-            <span class="sync-spinner"></span>
-            <span class="sync-label">Sync now</span>
-          </button>
           <button class="btn-disconnect" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>
         </div>
-        <div class="src-sync-status" id="status-${s.key}"></div>
         ` : `
         <div class="src-actions">
           <button class="btn-connect" onclick="connectSource('${s.oauthFn}')">Connect ${esc(s.label)} →</button>
@@ -258,6 +265,36 @@ async function loadSources() {
   } catch (e) {
     grid.innerHTML = `<div class="loading-state" style="color:#f87171">Failed to load connections: ${esc(e.message)}</div>`;
   }
+}
+
+function updateContinueBar(connectedCount) {
+  const status = document.getElementById('continueStatus');
+  const btn = document.getElementById('continueBtn');
+  const label = document.getElementById('continueLabel');
+
+  if (_returningUser) {
+    status.textContent = connectedCount > 0
+      ? `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected.`
+      : 'No sources connected.';
+    status.className = 'continue-status';
+    label.textContent = 'Back to Daat';
+    btn.disabled = false;
+    btn.onclick = () => { window.location.href = '/ask'; };
+    return;
+  }
+
+  if (connectedCount === 0) {
+    status.textContent = 'Connect at least one source to continue.';
+    status.className = 'continue-status';
+    btn.disabled = true;
+    label.textContent = 'Continue';
+  } else {
+    status.textContent = `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected. Ready when you are.`;
+    status.className = 'continue-status ready';
+    btn.disabled = false;
+    label.textContent = 'Continue';
+  }
+  btn.onclick = () => { window.location.href = '/ingest'; };
 }
 
 function connectSource(oauthFn) {
@@ -277,40 +314,12 @@ async function disconnectSource(key, table) {
   }
 }
 
-async function runSync(key, fnName) {
-  const btn = document.getElementById(`sync-${key}`);
-  const statusEl = document.getElementById(`status-${key}`);
-  btn.disabled = true;
-  btn.classList.add('syncing');
-  statusEl.className = 'src-sync-status';
-  statusEl.textContent = 'Syncing…';
-
-  const t0 = Date.now();
-  try {
-    const res = await fetch(`${FN_URL}/${fnName}`, {
-      method: 'POST',
-      headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
-    });
-    const body = await res.json().catch(() => null);
-    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-
-    if (!res.ok || !body) {
-      statusEl.className = 'src-sync-status err';
-      statusEl.textContent = `Sync failed — ${body?.error || 'unknown error'}`;
-      return;
-    }
-
-    const ingested = body.ingested ?? 0;
-    statusEl.className = 'src-sync-status ok';
-    statusEl.textContent = `Synced — ${ingested} item${ingested !== 1 ? 's' : ''} imported (${elapsed}s)`;
-    loadSources();
-  } catch (e) {
-    statusEl.className = 'src-sync-status err';
-    statusEl.textContent = `Sync failed — ${e.message}`;
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('syncing');
-  }
+async function checkReturningUser() {
+  const { count } = await _auth.sb
+    .from('comprehensions_output')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', _auth.workspaceId);
+  _returningUser = (count ?? 0) > 0;
 }
 
 async function init() {
@@ -321,6 +330,8 @@ async function init() {
     'Authorization': `Bearer ${_auth.token}`,
     'Content-Type': 'application/json',
   };
+  showOauthBanner();
+  await checkReturningUser();
   loadSources();
 }
 init();

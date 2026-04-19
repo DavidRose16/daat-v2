@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingest — Daat</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0f;
+  --surface: #111;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --text: #e2e2e2;
+  --text-dim: #888;
+  --text-dimmer: #555;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+
+.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
+.topbar-spacer { flex: 1; }
+
+.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 10px; }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
+}
+.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
+.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
+.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
+.step.active .step-label { color: var(--text); font-weight: 600; }
+.step.done .step-label { color: #4ade80; }
+.step-divider { width: 30px; height: 1px; background: var(--border2); }
+
+.page { max-width: 680px; margin: 0 auto; padding: 48px 24px 120px; }
+.page-heading { margin-bottom: 28px; text-align: center; }
+.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; color: var(--text); margin-bottom: 10px; }
+.page-sub { font-size: 13px; color: var(--text-dim); line-height: 1.65; max-width: 480px; margin: 0 auto; }
+
+/* Source rows */
+.source-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.source-row {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.source-row.done { border-color: #1a3a1a; }
+.source-row.err  { border-color: #3a1a1a; }
+
+.source-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: #1a1a1a; color: var(--text);
+}
+.source-meta { flex: 1; min-width: 0; }
+.source-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.source-status { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.source-status.ok { color: #4ade80; }
+.source-status.err { color: #f87171; }
+
+.spinner {
+  width: 14px; height: 14px; border: 2px solid #333;
+  border-top-color: var(--text-dim); border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.check { color: #4ade80; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+.cross { color: #f87171; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+
+/* Summary card */
+.summary-card {
+  display: none;
+  background: #0a140a; border: 1px solid #1a3a1a;
+  border-radius: 10px; padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.summary-card.visible { display: block; }
+.summary-title { font-size: 13px; font-weight: 700; color: #4ade80; margin-bottom: 10px; letter-spacing: 0.02em; }
+.summary-body { font-size: 14px; color: var(--text); line-height: 1.65; }
+.summary-big { font-size: 28px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px; letter-spacing: -0.015em; }
+.summary-sub { font-size: 12px; color: var(--text-dim); }
+
+/* Continue bar */
+.continue-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,15,15,0.94); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.continue-status { font-size: 12px; color: var(--text-dimmer); }
+.continue-status.ready { color: #4ade80; }
+.continue-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; background: #e2e2e2; color: #0f0f0f;
+  font-size: 13px; font-weight: 600; border-radius: 8px;
+  border: none; cursor: pointer; transition: background .12s, opacity .12s;
+}
+.continue-btn:hover:not(:disabled) { background: #fff; }
+.continue-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.empty-state { text-align: center; padding: 32px 0; color: var(--text-dim); font-size: 14px; }
+.empty-state a { color: #60c8f8; text-decoration: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/src/auth.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-brand">Daat</span>
+  <span class="topbar-spacer"></span>
+  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+</div>
+
+<div class="stepper">
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
+  <div class="step-divider"></div>
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Connect</span></div>
+  <div class="step-divider"></div>
+  <div class="step active"><span class="step-dot">3</span><span class="step-label">Ingest</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">4</span><span class="step-label">Build</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">5</span><span class="step-label">Ask</span></div>
+</div>
+
+<div class="page">
+
+  <div class="page-heading">
+    <div class="page-title" id="pageTitle">Pulling in your material</div>
+    <p class="page-sub" id="pageSub">Daat is reading directly from the sources you connected. This may take a minute.</p>
+  </div>
+
+  <div class="summary-card" id="summaryCard">
+    <div class="summary-title">Here's what Daat found</div>
+    <div class="summary-body">
+      <span class="summary-big" id="summaryTotal">0</span>
+      <span class="summary-sub" id="summarySub">items ingested</span>
+    </div>
+  </div>
+
+  <div class="source-list" id="sourceList"></div>
+
+  <div class="empty-state" id="emptyState" style="display:none">
+    No connected sources. <a href="/connect">Connect a source →</a>
+  </div>
+
+</div>
+
+<div class="continue-bar">
+  <span class="continue-status" id="continueStatus">Ingesting…</span>
+  <button class="continue-btn" id="continueBtn" disabled>
+    <span>Build my workspace</span><span>→</span>
+  </button>
+</div>
+
+<script>
+const SOURCES = [
+  { key: 'slack',      table: 'connections_slack',      label: 'Slack',             color: '#38bdf8', ingestFn: 'slack-ingest'      },
+  { key: 'notion',     table: 'connections_notion',     label: 'Notion',            color: '#a78bfa', ingestFn: 'notion-ingest'     },
+  { key: 'quickbooks', table: 'connections_quickbooks', label: 'QuickBooks',        color: '#4ade80', ingestFn: 'quickbooks-ingest' },
+  { key: 'google',     table: 'connections_google',     label: 'Google Workspace',  color: '#fb923c', ingestFn: 'google-ingest'     },
+];
+
+let _auth = null;
+let BASE_HEADERS = {};
+
+function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function renderSourceRow(source, state, detail) {
+  // state: 'waiting', 'running', 'done', 'error'
+  const row = document.getElementById(`row-${source.key}`);
+  if (!row) return;
+  row.className = `source-row ${state === 'done' ? 'done' : state === 'error' ? 'err' : ''}`;
+  const indicator =
+    state === 'running' ? '<div class="spinner"></div>' :
+    state === 'done'    ? '<span class="check">✓</span>' :
+    state === 'error'   ? '<span class="cross">×</span>' :
+    '<div class="spinner" style="opacity:.25"></div>';
+  const statusText =
+    state === 'waiting' ? 'Queued' :
+    state === 'running' ? 'Reading…' :
+    state === 'done'    ? detail :
+    state === 'error'   ? detail :
+    '';
+  const statusClass =
+    state === 'done'  ? 'ok' :
+    state === 'error' ? 'err' : '';
+  row.innerHTML = `
+    <div class="source-icon" style="color:${source.color}">${source.label[0]}</div>
+    <div class="source-meta">
+      <div class="source-name">${esc(source.label)}</div>
+      <div class="source-status ${statusClass}">${esc(statusText)}</div>
+    </div>
+    ${indicator}
+  `;
+}
+
+async function getConnectedSources() {
+  const results = await Promise.all(
+    SOURCES.map(s =>
+      fetch(`${SB_URL}/rest/v1/${s.table}?owner_id=eq.${_auth.workspaceId}&limit=1`, { headers: BASE_HEADERS })
+        .then(r => r.json()).then(d => (d && d[0]) ? s : null)
+    )
+  );
+  return results.filter(Boolean);
+}
+
+async function countSignals() {
+  const { count } = await _auth.sb
+    .from('signals_core')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', _auth.workspaceId);
+  return count ?? 0;
+}
+
+async function runIngest(source) {
+  renderSourceRow(source, 'running');
+  try {
+    const res = await fetch(`${FN_URL}/${source.ingestFn}`, {
+      method: 'POST',
+      headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || body.error) {
+      renderSourceRow(source, 'error', body?.error || `HTTP ${res.status}`);
+      return { ok: false, ingested: 0 };
+    }
+    const n = body.ingested ?? 0;
+    renderSourceRow(source, 'done', `Imported ${n} item${n !== 1 ? 's' : ''}`);
+    return { ok: true, ingested: n };
+  } catch (e) {
+    renderSourceRow(source, 'error', e.message);
+    return { ok: false, ingested: 0 };
+  }
+}
+
+function showSummary(total, sourcesUsed) {
+  const card = document.getElementById('summaryCard');
+  document.getElementById('summaryTotal').textContent = total.toLocaleString();
+  const sourceNames = sourcesUsed.map(s => s.label).join(', ');
+  document.getElementById('summarySub').innerHTML =
+    `item${total !== 1 ? 's' : ''} pulled in from ${esc(sourceNames)}.`;
+  card.classList.add('visible');
+
+  document.getElementById('pageTitle').textContent = 'Your raw material is in';
+  document.getElementById('pageSub').textContent = 'Next: Daat turns this into a workspace it can reason over.';
+
+  const status = document.getElementById('continueStatus');
+  const btn = document.getElementById('continueBtn');
+  status.textContent = 'Ready to build your workspace.';
+  status.className = 'continue-status ready';
+  btn.disabled = false;
+}
+
+async function init() {
+  _auth = await daatGetAuth();
+  if (!_auth) return;
+  BASE_HEADERS = {
+    'apikey': SB_ANON,
+    'Authorization': `Bearer ${_auth.token}`,
+    'Content-Type': 'application/json',
+  };
+
+  document.getElementById('continueBtn').onclick = () => {
+    window.location.href = '/build';
+  };
+
+  const connected = await getConnectedSources();
+  if (connected.length === 0) {
+    document.getElementById('emptyState').style.display = '';
+    document.getElementById('pageTitle').textContent = 'Nothing to ingest yet';
+    document.getElementById('pageSub').textContent = 'Connect a source so Daat has something to read.';
+    document.getElementById('continueStatus').textContent = 'No sources to ingest.';
+    return;
+  }
+
+  // Render initial rows (waiting)
+  const list = document.getElementById('sourceList');
+  list.innerHTML = connected.map(s => `<div class="source-row" id="row-${s.key}"></div>`).join('');
+  connected.forEach(s => renderSourceRow(s, 'waiting'));
+
+  // If we already have signals in the workspace, skip re-ingesting — just show current total.
+  const existing = await countSignals();
+  if (existing > 0) {
+    // Mark rows as already ingested and show summary from DB counts.
+    for (const s of connected) renderSourceRow(s, 'done', 'Already ingested');
+    showSummary(existing, connected);
+    return;
+  }
+
+  // Trigger ingests in parallel
+  const results = await Promise.all(connected.map(runIngest));
+  const total = results.reduce((sum, r) => sum + (r.ingested || 0), 0);
+  const anyOk = results.some(r => r.ok);
+
+  if (!anyOk) {
+    document.getElementById('pageTitle').textContent = 'Ingest failed';
+    document.getElementById('pageSub').textContent = 'Something went wrong reading from your sources. You can try again.';
+    document.getElementById('continueStatus').textContent = 'No items ingested.';
+    return;
+  }
+
+  // If the in-memory sum is 0 but DB has rows (race / async triggers), fall back to DB count.
+  const finalTotal = total > 0 ? total : await countSignals();
+  showSummary(finalTotal, connected.filter((_, i) => results[i].ok));
+}
+init();
+</script>
+</body>
+</html>

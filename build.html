@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building your workspace — Daat</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0f;
+  --surface: #111;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --text: #e2e2e2;
+  --text-dim: #888;
+  --text-dimmer: #555;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+
+.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
+.topbar-spacer { flex: 1; }
+
+.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 10px; }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
+}
+.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
+.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
+.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
+.step.active .step-label { color: var(--text); font-weight: 600; }
+.step.done .step-label { color: #4ade80; }
+.step-divider { width: 30px; height: 1px; background: var(--border2); }
+
+.page { max-width: 620px; margin: 0 auto; padding: 56px 24px 120px; text-align: center; }
+.page-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 16px; }
+.page-title { font-size: clamp(24px, 3.5vw, 32px); font-weight: 700; letter-spacing: -0.015em; color: var(--text); line-height: 1.2; margin-bottom: 14px; }
+.page-sub { font-size: 14px; line-height: 1.7; color: var(--text-dim); max-width: 480px; margin: 0 auto 36px; }
+
+/* Build panel */
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px 28px 24px;
+  text-align: left; margin: 0 auto;
+}
+.panel.success { border-color: #1a4d2e; background: #0a140a; }
+
+.progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.progress-label { font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.02em; }
+.progress-count { font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+.progress-bar {
+  width: 100%; height: 6px; background: #1a1a1a;
+  border-radius: 3px; overflow: hidden; margin-bottom: 18px;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #4ade80 0%, #60c8f8 100%);
+  width: 0%; transition: width .4s ease;
+}
+
+.phase-text { font-size: 13px; color: var(--text-dim); line-height: 1.6; display: flex; align-items: center; gap: 10px; }
+.phase-spinner { width: 12px; height: 12px; border: 2px solid #333; border-top-color: var(--text-dim); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+
+/* Success */
+.success-check {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: #0d2b1a; border: 1px solid #1a4d2e; color: #4ade80;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; margin: 0 auto 16px;
+}
+.success-title { font-size: 18px; font-weight: 700; color: #4ade80; margin-bottom: 8px; text-align: center; }
+.success-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; text-align: center; }
+
+/* Continue bar */
+.continue-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,15,15,0.94); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.continue-status { font-size: 12px; color: var(--text-dimmer); }
+.continue-status.ready { color: #4ade80; }
+.continue-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; background: #e2e2e2; color: #0f0f0f;
+  font-size: 13px; font-weight: 600; border-radius: 8px;
+  border: none; cursor: pointer; transition: background .12s, opacity .12s;
+}
+.continue-btn:hover:not(:disabled) { background: #fff; }
+.continue-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.error-box {
+  display: none;
+  background: #1a0808; border: 1px solid #4d1a1a;
+  color: #f87171; padding: 14px 18px; border-radius: 8px;
+  font-size: 13px; line-height: 1.6; text-align: left;
+}
+.error-box.visible { display: block; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/src/auth.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-brand">Daat</span>
+  <span class="topbar-spacer"></span>
+  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+</div>
+
+<div class="stepper">
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
+  <div class="step-divider"></div>
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Connect</span></div>
+  <div class="step-divider"></div>
+  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Ingest</span></div>
+  <div class="step-divider"></div>
+  <div class="step active"><span class="step-dot">4</span><span class="step-label">Build</span></div>
+  <div class="step-divider"></div>
+  <div class="step"><span class="step-dot">5</span><span class="step-label">Ask</span></div>
+</div>
+
+<div class="page">
+  <div class="page-eyebrow" id="pageEyebrow">Step 4</div>
+  <h1 class="page-title" id="pageTitle">Building your workspace</h1>
+  <p class="page-sub" id="pageSub">Daat is reading your material and organizing it into a unified knowledge workspace it can reason over. This usually takes a minute.</p>
+
+  <div class="panel" id="panel">
+    <div class="progress-header">
+      <span class="progress-label">Comprehension progress</span>
+      <span class="progress-count" id="progressCount">0 / 0</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="phase-text" id="phaseText">
+      <span class="phase-spinner"></span>
+      <span>Starting…</span>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+</div>
+
+<div class="continue-bar">
+  <span class="continue-status" id="continueStatus">Preparing your workspace…</span>
+  <button class="continue-btn" id="continueBtn" disabled>
+    <span>Enter Daat</span><span>→</span>
+  </button>
+</div>
+
+<script>
+let _auth = null;
+let BASE_HEADERS = {};
+
+function setPhase(text, withSpinner = true) {
+  const el = document.getElementById('phaseText');
+  el.innerHTML = withSpinner
+    ? `<span class="phase-spinner"></span><span>${text}</span>`
+    : `<span>${text}</span>`;
+}
+
+function setProgress(done, total) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressCount').textContent = `${done} / ${total}`;
+}
+
+async function countAssembly(filter) {
+  // filter like `comprehended_at=is.null` or empty for total
+  const q = filter ? `&${filter}` : '';
+  const res = await fetch(
+    `${SB_URL}/rest/v1/comprehensions_assembly?owner_id=eq.${_auth.workspaceId}&signals_core.source=neq.google&select=id,signals_core!inner(source)${q}`,
+    { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
+  );
+  const range = res.headers.get('content-range') || '';
+  const total = parseInt(range.split('/')[1], 10);
+  return isNaN(total) ? 0 : total;
+}
+
+async function countComprehensions() {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/comprehensions_output?owner_id=eq.${_auth.workspaceId}&select=id`,
+    { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
+  );
+  const range = res.headers.get('content-range') || '';
+  const total = parseInt(range.split('/')[1], 10);
+  return isNaN(total) ? 0 : total;
+}
+
+async function runComprehendBatch() {
+  const res = await fetch(`${FN_URL}/comprehend?limit=20`, {
+    method: 'POST',
+    headers: { ...BASE_HEADERS, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function showSuccess(totalBuilt) {
+  const panel = document.getElementById('panel');
+  panel.className = 'panel success';
+  panel.innerHTML = `
+    <div class="success-check">✓</div>
+    <div class="success-title">Your workspace is ready</div>
+    <div class="success-body">Daat has read and organized ${totalBuilt.toLocaleString()} item${totalBuilt !== 1 ? 's' : ''}. You can now ask it questions about your organization.</div>
+  `;
+  document.getElementById('pageTitle').textContent = 'Workspace ready';
+  document.getElementById('pageSub').textContent = 'You\'re all set.';
+
+  const status = document.getElementById('continueStatus');
+  const btn = document.getElementById('continueBtn');
+  status.textContent = 'Workspace built.';
+  status.className = 'continue-status ready';
+  btn.disabled = false;
+
+  // Auto-route after a short beat
+  setTimeout(() => { window.location.href = '/ask'; }, 1800);
+}
+
+function showError(message) {
+  const box = document.getElementById('errorBox');
+  box.textContent = message;
+  box.classList.add('visible');
+  setPhase('Paused', false);
+  document.getElementById('continueStatus').textContent = 'Something went wrong.';
+}
+
+async function init() {
+  _auth = await daatGetAuth();
+  if (!_auth) return;
+  BASE_HEADERS = {
+    'apikey': SB_ANON,
+    'Authorization': `Bearer ${_auth.token}`,
+    'Content-Type': 'application/json',
+  };
+
+  document.getElementById('continueBtn').onclick = () => {
+    window.location.href = '/ask';
+  };
+
+  setPhase('Counting your signals…');
+
+  const total = await countAssembly('');
+  if (total === 0) {
+    // Nothing to do — check if workspace is actually built
+    const built = await countComprehensions();
+    if (built > 0) {
+      setProgress(built, built);
+      showSuccess(built);
+      return;
+    }
+    showError('No material to build with. Go back and ingest some sources.');
+    return;
+  }
+
+  let pending = await countAssembly('comprehended_at=is.null');
+  let done = total - pending;
+  setProgress(done, total);
+  setPhase(`Reading ${total} item${total !== 1 ? 's' : ''}…`);
+
+  let consecutiveNoProgress = 0;
+
+  while (pending > 0) {
+    try {
+      const result = await runComprehendBatch();
+      const advanced = (result.succeeded ?? 0) + (result.skipped ?? 0);
+      const failed   = result.failed ?? 0;
+
+      const newPending = await countAssembly('comprehended_at=is.null');
+      const newDone = total - newPending;
+      setProgress(newDone, total);
+
+      if (newPending === pending) {
+        // No progress this cycle
+        consecutiveNoProgress++;
+        if (consecutiveNoProgress >= 2) {
+          if (failed > 0) {
+            showError(`Build stalled. ${failed} item${failed !== 1 ? 's' : ''} could not be processed.`);
+          } else {
+            showError('Build stalled with no progress. Please retry.');
+          }
+          return;
+        }
+      } else {
+        consecutiveNoProgress = 0;
+      }
+
+      pending = newPending;
+      setPhase(pending > 0
+        ? `Organizing your material… ${newDone} of ${total} complete.`
+        : 'Finalizing your workspace…');
+
+    } catch (e) {
+      showError(e.message);
+      return;
+    }
+  }
+
+  const built = await countComprehensions();
+  showSuccess(built);
+}
+init();
+</script>
+</body>
+</html>

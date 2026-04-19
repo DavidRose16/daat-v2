@@ -121,14 +121,6 @@
   .error-box { background: #140808; border: 1px solid #3a1a1a; border-radius: 8px; padding: 14px 18px; color: #f87171; font-size: 13px; line-height: 1.6; display: none; }
   .error-box.visible { display: block; }
 
-  /* Connect prompt */
-  .connect-prompt { display: none; text-align: center; padding: 64px 24px; }
-  .connect-prompt.visible { display: block; }
-  .connect-prompt-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
-  .connect-prompt-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin-bottom: 28px; max-width: 380px; margin-left: auto; margin-right: auto; }
-  .connect-prompt-link { display: inline-block; padding: 9px 22px; background: #141414; border: 1px solid var(--border2); border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; transition: background .12s, border-color .12s; }
-  .connect-prompt-link:hover { background: #1c1c1c; border-color: #3a3a3a; }
-
   @keyframes spin { to { transform: rotate(360deg); } }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
@@ -147,12 +139,6 @@
 </div>
 
 <div class="page">
-
-  <div class="connect-prompt" id="connectPrompt">
-    <div class="connect-prompt-title">No sources connected yet</div>
-    <p class="connect-prompt-body">Connect at least one source to start asking questions. Daat needs data to work with.</p>
-    <a href="/connect" class="connect-prompt-link">Connect sources →</a>
-  </div>
 
   <div id="askForm">
 
@@ -212,15 +198,24 @@ async function init() {
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Connect-first check
-  const connTables = ['connections_slack','connections_notion','connections_quickbooks','connections_google'];
-  const checks = await Promise.all(
-    connTables.map(t => _auth.sb.from(t).select('id', { count: 'exact', head: true }).eq('owner_id', _auth.workspaceId))
-  );
-  const hasConnections = checks.some(r => (r.count ?? 0) > 0);
-  if (!hasConnections) {
-    document.getElementById('connectPrompt').classList.add('visible');
-    document.getElementById('askForm').style.display = 'none';
+  // Workspace-ready check: Ask is only meaningful once comprehensions exist.
+  const { count: comprehensionsCount } = await _auth.sb
+    .from('comprehensions_output')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', _auth.workspaceId);
+
+  if ((comprehensionsCount ?? 0) === 0) {
+    // Route to the correct onboarding stage based on current state.
+    const { count: signalsCount } = await _auth.sb
+      .from('signals_core')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', _auth.workspaceId);
+
+    if ((signalsCount ?? 0) > 0) {
+      window.location.replace('/build');
+      return;
+    }
+    window.location.replace('/welcome');
     return;
   }
 

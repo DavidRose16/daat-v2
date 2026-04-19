@@ -154,12 +154,19 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
 
+  // If an OAuth callback redirected here with status params, forward to /connect
+  // so the user lands back in the onboarding flow with feedback visible.
+  const qs = new URLSearchParams(window.location.search);
+  if (session && qs.get('integration')) {
+    window.location.replace('/connect' + window.location.search);
+    return;
+  }
+
   if (!session) {
     document.body.classList.add('visible');
     return;
   }
 
-  // Signed in — resolve workspace then route
   const { data: profile } = await sb
     .from('profiles')
     .select('workspace_id')
@@ -173,12 +180,23 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
   }
 
   const wid = profile.workspace_id;
-  const tables = ['connections_slack', 'connections_notion', 'connections_quickbooks', 'connections_google'];
-  const checks = await Promise.all(
-    tables.map(t => sb.from(t).select('id', { count: 'exact', head: true }).eq('owner_id', wid))
-  );
-  const hasConnections = checks.some(r => (r.count ?? 0) > 0);
-  window.location.replace(hasConnections ? '/ask' : '/connect');
+
+  // Route authed users to the furthest onboarding stage they've completed.
+  // Comprehensions exist → workspace is ready → Ask.
+  // Signals exist but no comprehensions → need to build.
+  // Neither → fresh start, show Welcome.
+  const [{ count: comprehensionsCount }, { count: signalsCount }] = await Promise.all([
+    sb.from('comprehensions_output').select('id', { count: 'exact', head: true }).eq('owner_id', wid),
+    sb.from('signals_core').select('id', { count: 'exact', head: true }).eq('owner_id', wid),
+  ]);
+
+  if ((comprehensionsCount ?? 0) > 0) {
+    window.location.replace('/ask');
+  } else if ((signalsCount ?? 0) > 0) {
+    window.location.replace('/build');
+  } else {
+    window.location.replace('/welcome');
+  }
 })();
 </script>
 </body>

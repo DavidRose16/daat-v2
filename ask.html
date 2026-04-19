@@ -9,57 +9,28 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .ask-heading {
-    margin-bottom: 40px;
-  }
+  .ask-heading { margin-bottom: 40px; max-width: 640px; }
   .ask-heading .eyebrow { margin-bottom: 14px; }
-  .ask-heading h1       { margin-bottom: 10px; }
-  .ask-heading .lede    { max-width: 540px; }
+  .ask-heading h1       { margin-bottom: 12px; }
+  .ask-heading .lede    { max-width: 560px; }
 
-  /* Query surface */
-  .ask-form {
-    border-top: 2px solid var(--ink);
-    padding-top: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  .ask-btn .btn-spinner {
+    width: 13px; height: 13px;
+    border: 2px solid rgba(250,250,247,0.32);
+    border-top-color: var(--ink-inverse);
+    border-radius: 50%;
+    animation: daat-spin 0.8s linear infinite;
+    display: none;
   }
-
-  .ask-submit-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 4px;
-  }
-  .ask-submit-hint {
-    font-size: 12px;
-    color: var(--ink-3);
-    letter-spacing: 0.01em;
-  }
-  .ask-submit-hint kbd {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 1px 5px;
-    border: 1px solid var(--border-strong);
-    background: var(--surface);
-    color: var(--ink-2);
-  }
-
-  .ask-btn { min-width: 120px; justify-content: center; }
-  .ask-btn .spinner { width: 13px; height: 13px; display: none; border-top-color: var(--ink-inverse); border-color: rgba(250,250,247,0.3); border-top-color: var(--ink-inverse); }
-  .ask-btn.running .spinner { display: block; }
-  .ask-btn.running .ask-label { display: none; }
+  .ask-btn.running .btn-spinner { display: inline-block; }
+  .ask-btn.running .btn-arrow,
+  .ask-btn.running .ask-label   { display: none; }
+  .ask-btn.running .running-label { display: inline; }
+  .running-label { display: none; }
 
   /* Result surface — editorial briefing */
-  .result-area { display: none; margin-top: 56px; }
+  .result-area { display: none; margin-top: 72px; }
   .result-area.visible { display: block; }
-
-  .result-divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 0 0 36px;
-  }
 
   .result-eyebrow {
     font-size: 11px;
@@ -67,24 +38,26 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 14px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
   }
 
   .summary-text {
-    font-size: 19px;
-    line-height: 1.6;
+    font-size: 20px;
+    line-height: 1.55;
     color: var(--ink);
-    letter-spacing: -0.005em;
-    margin-bottom: 32px;
+    letter-spacing: -0.008em;
+    margin-bottom: 36px;
+    text-wrap: pretty;
   }
 
   .priority-card {
     display: none;
-    background: var(--brand-tint);
-    border: 1px solid var(--brand);
-    border-left-width: 3px;
-    padding: 18px 22px;
-    margin-bottom: 32px;
+    background: var(--surface);
+    border-left: 3px solid var(--brand-deep);
+    padding: 4px 0 4px 22px;
+    margin: 0 0 36px;
   }
   .priority-card.visible { display: block; }
   .priority-label {
@@ -96,45 +69,48 @@
     margin-bottom: 8px;
   }
   .priority-text {
-    font-size: 14px;
-    line-height: 1.65;
+    font-size: 15px;
+    line-height: 1.6;
     color: var(--ink);
   }
 
   /* Context — demoted, structured */
   details.context-details {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
     border-top: 1px solid var(--border);
   }
   details.context-details > summary {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-3);
     cursor: pointer;
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 16px 0;
+    justify-content: space-between;
+    padding: 18px 0;
     user-select: none;
     transition: color var(--t-fast);
   }
   details.context-details > summary:hover { color: var(--ink); }
   details.context-details > summary::-webkit-details-marker { display: none; }
   .summary-arrow {
-    font-size: 11px;
-    transition: transform var(--t-fast);
+    font-size: 13px;
+    color: var(--ink-3);
+    transition: transform var(--t-fast), color var(--t-fast);
     display: inline-block;
+    line-height: 1;
   }
+  details.context-details:hover .summary-arrow { color: var(--ink); }
   details.context-details[open] .summary-arrow { transform: rotate(90deg); }
 
   .context-inner {
-    padding: 8px 0 24px;
+    padding: 8px 0 28px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
   }
   .ctx-section-title {
     font-size: 11px;
@@ -142,54 +118,54 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
-  .ctx-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .ctx-list { list-style: none; display: flex; flex-direction: column; }
   .ctx-list li {
     font-size: 14px;
     color: var(--ink);
-    padding: 10px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    padding: 12px 0;
     line-height: 1.55;
+    border-bottom: 1px solid var(--border);
   }
+  .ctx-list li:first-child { border-top: 1px solid var(--border); }
   .ctx-prose {
     font-size: 14px;
     color: var(--ink-2);
-    line-height: 1.65;
-    padding: 14px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    line-height: 1.7;
+    padding: 0;
   }
 
   .result-footer {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
-    padding-top: 20px;
+    padding-top: 22px;
     border-top: 1px solid var(--border);
   }
   .conf-badge {
     font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border: 1px solid var(--border-strong);
+    background: var(--surface);
+    line-height: 1.2;
   }
-  .conf-high   { color: var(--brand-deep); border-color: var(--brand-deep); background: var(--brand-tint); }
-  .conf-medium { color: var(--warn); border-color: #D9B778; background: var(--warn-bg); }
-  .conf-low    { color: var(--danger); border-color: #E59A94; background: var(--danger-bg); }
+  .conf-high   { color: var(--brand-deep); border-color: var(--brand-deep); }
+  .conf-medium { color: var(--warn); border-color: #D9B778; }
+  .conf-low    { color: var(--danger); border-color: #E59A94; }
 
-  .source-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .source-tags { display: flex; gap: 8px; flex-wrap: wrap; }
   .source-tag {
     font-size: 11px;
-    padding: 2px 8px;
-    background: var(--surface);
+    padding: 3px 10px;
     border: 1px solid var(--border-strong);
     color: var(--ink-3);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
   }
 
   .error-box {
@@ -197,15 +173,15 @@
     border: 1px solid #E59A94;
     background: var(--danger-bg);
     color: var(--danger);
-    padding: 14px 18px;
+    padding: 16px 20px;
     font-size: 14px;
     line-height: 1.55;
-    margin: 36px 0;
+    margin: 36px 0 0;
   }
   .error-box.visible { display: block; }
 
   @media (max-width: 560px) {
-    .summary-text { font-size: 17px; }
+    .summary-text { font-size: 18px; }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -223,33 +199,43 @@
     <p class="lede">Describe what you want to know. Daat reads across your connected sources and returns a grounded briefing.</p>
   </header>
 
-  <div class="ask-form" id="askForm">
+  <div class="composer" id="askForm">
 
-    <div>
-      <label class="field-label">Intent</label>
-      <div class="segmented" id="intentGroup">
-        <button class="segmented-btn selected" data-intent="inform">Inform</button>
-        <button class="segmented-btn" data-intent="decide">Decide</button>
-        <button class="segmented-btn" data-intent="diagnose">Diagnose</button>
-        <button class="segmented-btn" data-intent="plan">Plan</button>
+    <div class="composer-row composer-row-inline">
+      <span class="composer-label">Intent</span>
+      <div class="intent-tabs" id="intentGroup" role="tablist">
+        <button class="intent-tab selected" data-intent="inform"   role="tab">Inform</button>
+        <button class="intent-tab"          data-intent="decide"   role="tab">Decide</button>
+        <button class="intent-tab"          data-intent="diagnose" role="tab">Diagnose</button>
+        <button class="intent-tab"          data-intent="plan"     role="tab">Plan</button>
       </div>
     </div>
 
-    <div>
-      <label class="field-label" for="taskInput">Your question</label>
-      <textarea class="field-textarea" id="taskInput" placeholder="e.g. Where are we on the billing migration and what is unresolved?"></textarea>
+    <div class="composer-row">
+      <textarea
+        class="composer-query"
+        id="taskInput"
+        aria-label="Your question"
+        placeholder="Where are we on the billing migration, and what is still unresolved?"></textarea>
     </div>
 
-    <div>
-      <label class="field-label" for="entitiesInput">People, topics, or systems <span class="hint">— optional</span></label>
-      <input class="field-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
+    <div class="composer-row composer-row-inline">
+      <span class="composer-label">Focus</span>
+      <input
+        class="composer-focus-input"
+        id="entitiesInput"
+        type="text"
+        aria-label="People, topics, or systems"
+        placeholder="acme, Q4 roadmap, sarah — comma separated (optional)">
     </div>
 
-    <div class="ask-submit-row">
-      <span class="ask-submit-hint"><kbd>⌘</kbd> + <kbd>↵</kbd> to submit</span>
+    <div class="composer-submit-row">
+      <span class="composer-hint"><kbd>⌘</kbd><kbd>↵</kbd> to submit</span>
       <button class="btn btn-primary ask-btn" id="askBtn">
         <span class="ask-label">Ask Daat</span>
-        <span class="spinner"></span>
+        <span class="running-label">Reading…</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+        <span class="btn-arrow">→</span>
       </button>
     </div>
 
@@ -258,7 +244,6 @@
   <div class="error-box" id="errorBox"></div>
 
   <div class="result-area" id="resultArea">
-    <hr class="result-divider">
     <div class="result-eyebrow">Briefing</div>
     <p class="summary-text" id="summaryText"></p>
 
@@ -268,7 +253,7 @@
     </div>
 
     <details class="context-details" id="contextDetails">
-      <summary><span class="summary-arrow">›</span> Context &amp; grounding</summary>
+      <summary><span>Context &amp; grounding</span><span class="summary-arrow">›</span></summary>
       <div class="context-inner" id="contextInner"></div>
     </details>
 
@@ -298,9 +283,9 @@ async function init() {
   }
 
   document.getElementById('intentGroup').addEventListener('click', e => {
-    const btn = e.target.closest('.segmented-btn');
+    const btn = e.target.closest('.intent-tab');
     if (!btn) return;
-    document.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.intent-tab').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedIntent = btn.dataset.intent;
   });

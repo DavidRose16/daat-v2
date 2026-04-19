@@ -9,74 +9,18 @@
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  .connect-heading { margin-bottom: 40px; }
+  .connect-heading { margin-bottom: 48px; max-width: 640px; }
   .connect-heading .eyebrow { margin-bottom: 16px; }
   .connect-heading h1       { margin-bottom: 14px; }
-  .connect-heading .lede    { max-width: 540px; }
-
-  .sources-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
-  }
-  .src-card {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    padding: 26px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-height: 180px;
-    position: relative;
-    transition: background var(--t-fast);
-  }
-  .src-card.connected { background: var(--surface); }
-  .src-card.connected::before {
-    content: '';
-    position: absolute; left: 0; top: 0; bottom: 0;
-    width: 2px; background: var(--brand-deep);
-  }
-
-  .src-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .src-name { font-size: 16px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
-
-  .src-desc { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
-
-  .src-meta {
-    display: flex; flex-direction: column; gap: 6px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-    margin-top: auto;
-  }
-  .src-meta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-  .src-meta-label { font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
-  .src-meta-value { font-size: 13px; color: var(--ink); text-align: right; word-break: break-all; font-weight: 500; }
-
-  .src-actions { margin-top: auto; display: flex; gap: 10px; flex-wrap: wrap; }
-
-  .src-unprocessed {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--warn);
-    background: var(--warn-bg);
-    border: 1px solid #E9D9A7;
-    padding: 2px 7px;
-    margin-left: 10px;
-  }
+  .connect-heading .lede    { max-width: 560px; }
 
   .loading-state {
-    padding: 48px 24px;
+    padding: 60px 0;
     color: var(--ink-3);
     font-size: 13px;
     text-align: center;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -86,7 +30,7 @@
 
 <div id="daat-shell"></div>
 
-<main class="daat-page wide">
+<main class="daat-page">
 
   <header class="connect-heading">
     <div class="eyebrow" id="pageEyebrow">Step 2 of 3</div>
@@ -96,7 +40,7 @@
 
   <div class="banner" id="oauthBanner" role="status"></div>
 
-  <div class="sources-grid" id="sourcesGrid">
+  <div class="source-stack" id="sourcesGrid">
     <div class="loading-state">Loading…</div>
   </div>
 
@@ -202,32 +146,40 @@ async function loadSources() {
       const conn = rows[i];
       const connected = !!conn;
       const unprocessed = unprocessedKeys.has(s.key);
+      const state = unprocessed ? 'unprocessed' : connected ? 'connected' : 'disconnected';
+      const stateLabel =
+        unprocessed ? 'Unprocessed'
+        : connected  ? 'Connected'
+        : 'Not connected';
+
       return `
-      <div class="src-card ${connected ? 'connected' : ''}" id="card-${s.key}">
-        <div class="src-head">
-          <span class="src-name">${esc(s.label)}${unprocessed ? '<span class="src-unprocessed">Unprocessed</span>' : ''}</span>
-          <span class="badge ${connected ? 'badge-ok' : 'badge-neutral'}">${connected ? 'Connected' : 'Not connected'}</span>
-        </div>
-        <p class="src-desc">${esc(s.desc)}</p>
-        ${connected ? `
-        <div class="src-meta">
-          <div class="src-meta-row">
-            <span class="src-meta-label">Account</span>
-            <span class="src-meta-value">${esc(conn[s.nameField] || '—')}</span>
+      <article class="source-row" data-state="${state}" id="card-${s.key}">
+        <div class="source-row-mark">${esc(s.label.charAt(0))}</div>
+        <div class="source-row-main">
+          <header class="source-row-header">
+            <h3 class="source-row-title">${esc(s.label)}</h3>
+            <span class="source-row-state">${stateLabel}</span>
+          </header>
+          <p class="source-row-desc">${esc(s.desc)}</p>
+          ${connected ? `
+          <div class="source-row-meta">
+            <div class="source-row-meta-item">
+              <span class="source-row-meta-key">Account</span>
+              <span class="source-row-meta-val">${esc(conn[s.nameField] || '—')}</span>
+            </div>
           </div>
+          ` : ''}
         </div>
-        <div class="src-actions">
-          <button class="btn btn-ghost" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>
+        <div class="source-row-action">
+          ${connected
+            ? `<button class="btn btn-danger" onclick="disconnectSource('${s.key}', '${s.table}')">Disconnect</button>`
+            : `<button class="btn btn-sm btn-secondary" onclick="connectSource('${s.oauthFn}')">Connect <span class="btn-arrow">→</span></button>`
+          }
         </div>
-        ` : `
-        <div class="src-actions">
-          <button class="btn btn-secondary" onclick="connectSource('${s.oauthFn}')">Connect ${esc(s.label)}</button>
-        </div>
-        `}
-      </div>`;
+      </article>`;
     }).join('');
   } catch (e) {
-    grid.innerHTML = `<div class="loading-state" style="color:var(--danger)">Failed to load connections: ${esc(e.message)}</div>`;
+    grid.innerHTML = `<div class="loading-state" style="color:var(--danger);border-color:#E59A94">Failed to load connections: ${esc(e.message)}</div>`;
   }
 }
 

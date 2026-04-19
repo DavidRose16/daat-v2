@@ -12,12 +12,12 @@
   .welcome-hero {
     display: flex;
     flex-direction: column;
-    gap: 36px;
-    margin-bottom: 56px;
+    gap: 40px;
+    margin-bottom: 64px;
   }
   .welcome-mark {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     object-fit: contain;
     display: block;
   }
@@ -32,15 +32,15 @@
   .first-step {
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-    padding: 24px 0;
-    margin: 40px 0 48px;
+    padding: 28px 0;
+    margin: 48px 0 56px;
     display: grid;
-    grid-template-columns: 120px 1fr;
+    grid-template-columns: 140px 1fr;
     gap: 24px;
     align-items: baseline;
   }
   @media (max-width: 560px) {
-    .first-step { grid-template-columns: 1fr; gap: 10px; }
+    .first-step { grid-template-columns: 1fr; gap: 10px; padding: 20px 0; }
   }
   .first-step-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
   .first-step-text  { font-size: 15px; line-height: 1.65; color: var(--ink); }
@@ -73,7 +73,7 @@
     </div>
   </div>
 
-  <button id="ctaBtn" class="btn btn-primary">
+  <button id="ctaBtn" class="btn btn-primary btn-lg">
     Connect your sources <span class="btn-arrow">→</span>
   </button>
 

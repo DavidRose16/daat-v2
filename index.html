@@ -4,18 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Daat</title>
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
+
+:root {
+  --layer-1: #1B3D2F;
+  --layer-2: #2D5A47;
+  --layer-3: #7FCFAA;
+  --bg: #FAF9F6;
+  --surface: #FFFFFF;
+  --border: #E5E3DC;
+  --ink: #1A1D1F;
+  --ink-2: #4A4E52;
+  --ink-3: #7A7E82;
+  --ink-4: #AAADB0;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 body {
-  background: #0f0f0f;
-  color: #e2e2e2;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   opacity: 0;
   transition: opacity 0.18s ease;
+  -webkit-font-smoothing: antialiased;
 }
 body.visible { opacity: 1; }
 
@@ -24,113 +43,138 @@ body.visible { opacity: 1; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 32px;
+  padding: 24px 48px;
   flex-shrink: 0;
 }
 .top-brand {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #e2e2e2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.top-brand-mark {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.top-brand-word {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 .top-right { display: flex; align-items: center; gap: 24px; }
 .top-link {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: #555;
+  color: var(--ink-3);
   text-decoration: none;
   transition: color 0.12s;
 }
-.top-link:hover { color: #aaa; }
+.top-link:hover { color: var(--ink); }
 
 /* Hero */
 .hero {
   flex: 1;
   display: flex;
   align-items: center;
-  padding: 48px 32px 96px;
+  padding: 48px;
 }
-.hero-inner { max-width: 600px; }
+.hero-inner { max-width: 560px; }
 
 .hero-headline {
-  font-size: clamp(34px, 5.5vw, 54px);
-  font-weight: 700;
-  color: #e2e2e2;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
-  margin-bottom: 22px;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
 }
 .hero-body {
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.7;
-  color: #666;
-  margin-bottom: 36px;
-  max-width: 460px;
+  color: var(--ink-2);
+  margin-bottom: 40px;
+  max-width: 480px;
 }
 .hero-cta {
   display: inline-flex;
   align-items: center;
-  padding: 12px 26px;
-  background: #e2e2e2;
-  color: #0f0f0f;
+  gap: 10px;
+  padding: 14px 28px;
+  background: var(--layer-1);
+  color: var(--bg);
+  font-family: var(--sans);
   font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
+  font-weight: 500;
   text-decoration: none;
-  letter-spacing: 0.01em;
   transition: background 0.12s;
 }
-.hero-cta:hover { background: #fff; }
+.hero-cta:hover { background: var(--layer-2); }
+.hero-cta-arrow { font-size: 16px; }
 
 /* Sources row */
 .sources-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 40px;
+  margin-top: 48px;
   flex-wrap: wrap;
 }
 .sources-label {
   font-size: 11px;
-  color: #333;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
   flex-shrink: 0;
 }
 .source-pill {
-  font-size: 11px;
-  color: #3a3a3a;
-  padding: 3px 10px;
-  border: 1px solid #1e1e1e;
-  border-radius: 20px;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  letter-spacing: 0.01em;
 }
 
 /* Footer */
 .landing-footer {
-  border-top: 1px solid #141414;
-  padding: 14px 32px;
+  border-top: 1px solid var(--border);
+  padding: 18px 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
 }
-.footer-note { font-size: 11px; color: #222; }
+.footer-note { font-size: 12px; color: var(--ink-4); }
+
+@media (max-width: 640px) {
+  .top-bar { padding: 20px 24px; }
+  .hero { padding: 32px 24px; }
+  .landing-footer { padding: 16px 24px; }
+}
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-  <span class="top-brand">Daat</span>
+  <div class="top-brand">
+    <img class="top-brand-mark" src="/assets/Daat-Logo.png" alt="">
+    <span class="top-brand-word">Daat</span>
+  </div>
   <div class="top-right">
-    <a href="/login" class="top-link">Sign in →</a>
+    <a href="/login" class="top-link">Sign in</a>
   </div>
 </div>
 
 <div class="hero">
   <div class="hero-inner">
-    <h1 class="hero-headline">Know what's happening<br>in your organization.</h1>
+    <h1 class="hero-headline">Know what's happening in your organization.</h1>
     <p class="hero-body">Connect your tools. Ask a question. Daat reads your data and tells you what actually matters — decisions, blockers, and context drawn directly from your sources.</p>
-    <a href="/login" class="hero-cta">Get started</a>
+    <a href="/login" class="hero-cta">
+      Get started
+      <span class="hero-cta-arrow">→</span>
+    </a>
     <div class="sources-row">
       <span class="sources-label">Works with</span>
       <span class="source-pill">Slack</span>
@@ -154,8 +198,6 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
 
-  // If an OAuth callback redirected here with status params, forward to /connect
-  // so the user lands back in the onboarding flow with feedback visible.
   const qs = new URLSearchParams(window.location.search);
   if (session && qs.get('integration')) {
     window.location.replace('/connect' + window.location.search);
@@ -179,8 +221,6 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
     return;
   }
 
-  // Route by explicit onboarding_state. Data existence is a fallback only for
-  // rows somehow missing the column (shouldn't happen post-migration).
   const state = profile.workspaces?.onboarding_state || 'welcome';
   const dest =
     state === 'ready'      ? '/ask' :

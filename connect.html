@@ -117,6 +117,20 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .continue-btn:hover:not(:disabled) { background: #fff; }
 .continue-btn:disabled { opacity: .35; cursor: not-allowed; }
 
+.secondary-link {
+  background: transparent; border: none; color: var(--text-dimmer);
+  font-size: 12px; cursor: pointer; padding: 6px 10px; margin-right: 4px;
+  transition: color .12s;
+}
+.secondary-link:hover { color: var(--text-dim); }
+
+.src-unprocessed-pill {
+  display: inline-block; margin-left: 8px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  color: #e8c97a; background: #140f00; border: 1px solid #2e2000;
+  padding: 2px 7px; border-radius: 4px;
+}
+
 /* Loading */
 .loading-state { padding: 32px 0; color: #333; font-size: 13px; text-align: center; }
 
@@ -162,10 +176,13 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 <div class="continue-bar">
   <span class="continue-status" id="continueStatus">Connect at least one source to continue.</span>
-  <button class="continue-btn" id="continueBtn" disabled>
-    <span id="continueLabel">Continue</span>
-    <span>→</span>
-  </button>
+  <div style="display:flex;align-items:center;gap:4px;">
+    <button class="secondary-link" id="secondaryBtn" style="display:none"></button>
+    <button class="continue-btn" id="continueBtn" disabled>
+      <span id="continueLabel">Continue</span>
+      <span>→</span>
+    </button>
+  </div>
 </div>
 
 <script>
@@ -223,6 +240,16 @@ function showOauthBanner() {
   history.replaceState({}, '', window.location.pathname);
 }
 
+async function countSignalsForSource(sourceKey) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/signals_core?owner_id=eq.${_auth.workspaceId}&source=eq.${sourceKey}&select=id`,
+    { headers: { ...BASE_HEADERS, 'Prefer': 'count=exact', 'Range': '0-0' } }
+  );
+  const range = res.headers.get('content-range') || '';
+  const total = parseInt(range.split('/')[1], 10);
+  return isNaN(total) ? 0 : total;
+}
+
 async function loadSources() {
   const grid = document.getElementById('sourcesGrid');
   try {
@@ -233,15 +260,27 @@ async function loadSources() {
       )
     );
     const connectedCount = rows.filter(Boolean).length;
-    updateContinueBar(connectedCount);
+
+    // In manage mode, check which connected sources have never been ingested
+    // (connected but zero signals) — those are "unprocessed" and surface a rebuild hint.
+    let unprocessedKeys = new Set();
+    if (_manageMode && connectedCount > 0) {
+      const sigCounts = await Promise.all(
+        SOURCES.map((s, i) => rows[i] ? countSignalsForSource(s.key) : Promise.resolve(-1))
+      );
+      SOURCES.forEach((s, i) => { if (sigCounts[i] === 0) unprocessedKeys.add(s.key); });
+    }
+
+    updateContinueBar(connectedCount, unprocessedKeys);
 
     grid.innerHTML = SOURCES.map((s, i) => {
       const conn = rows[i];
       const connected = !!conn;
+      const unprocessed = unprocessedKeys.has(s.key);
       return `
       <div class="src-card ${connected ? 'connected' : ''}" id="card-${s.key}">
         <div class="src-head">
-          <span class="src-name" style="color:${s.color}">${esc(s.label)}</span>
+          <span class="src-name" style="color:${s.color}">${esc(s.label)}${unprocessed ? '<span class="src-unprocessed-pill">Unprocessed</span>' : ''}</span>
           <span class="src-badge ${connected ? 'on' : 'off'}">${connected ? 'Connected' : 'Not connected'}</span>
         </div>
         <p class="src-desc">${esc(s.desc)}</p>
@@ -267,12 +306,44 @@ async function loadSources() {
   }
 }
 
-function updateContinueBar(connectedCount) {
+async function startRebuild(btn) {
+  btn.disabled = true;
+  try {
+    // Ready → processing is the explicit user-initiated rebuild transition.
+    await daatSetOnboardingState(_auth, 'processing');
+  } catch (e) {
+    console.warn('Failed to advance onboarding_state:', e);
+  }
+  window.location.href = '/processing';
+}
+
+function updateContinueBar(connectedCount, unprocessedKeys) {
   const status = document.getElementById('continueStatus');
   const btn = document.getElementById('continueBtn');
   const label = document.getElementById('continueLabel');
+  const secondary = document.getElementById('secondaryBtn');
+
+  secondary.style.display = 'none';
+  secondary.onclick = null;
 
   if (_manageMode) {
+    const hasUnprocessed = unprocessedKeys && unprocessedKeys.size > 0;
+    if (hasUnprocessed) {
+      // Ready user added a source but it's never been ingested.
+      // Primary action is rebuild. "Back to Daat" is demoted to a secondary link.
+      status.textContent = `${unprocessedKeys.size} source${unprocessedKeys.size !== 1 ? 's' : ''} not yet processed.`;
+      status.className = 'continue-status';
+      label.textContent = 'Rebuild workspace';
+      btn.disabled = false;
+      btn.onclick = () => startRebuild(btn);
+
+      secondary.textContent = 'Back to Daat';
+      secondary.style.display = '';
+      secondary.onclick = () => { window.location.href = '/ask'; };
+      return;
+    }
+
+    // Pure management — no new work to do. Rebuild is still available as a secondary.
     status.textContent = connectedCount > 0
       ? `${connectedCount} source${connectedCount !== 1 ? 's' : ''} connected.`
       : 'No sources connected.';
@@ -280,9 +351,16 @@ function updateContinueBar(connectedCount) {
     label.textContent = 'Back to Daat';
     btn.disabled = false;
     btn.onclick = () => { window.location.href = '/ask'; };
+
+    if (connectedCount > 0) {
+      secondary.textContent = 'Rebuild workspace';
+      secondary.style.display = '';
+      secondary.onclick = () => startRebuild(secondary);
+    }
     return;
   }
 
+  // Onboarding mode
   if (connectedCount === 0) {
     status.textContent = 'Connect at least one source to continue.';
     status.className = 'continue-status';
@@ -299,7 +377,6 @@ function updateContinueBar(connectedCount) {
     try {
       await daatSetOnboardingState(_auth, 'processing');
     } catch (e) {
-      // Don't hard-block the user — but log so they can retry if redirect fails.
       console.warn('Failed to advance onboarding_state:', e);
     }
     window.location.href = '/processing';

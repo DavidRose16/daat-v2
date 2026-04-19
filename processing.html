@@ -293,6 +293,15 @@ async function countSignals() {
   return count ?? 0;
 }
 
+async function countSignalsForSource(sourceKey) {
+  const { count } = await _auth.sb
+    .from('signals_core')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', _auth.workspaceId)
+    .eq('source', sourceKey);
+  return count ?? 0;
+}
+
 async function runIngest(source) {
   renderSourceRow(source, 'running');
   try {
@@ -325,16 +334,23 @@ async function phaseIngest() {
   list.innerHTML = connected.map(s => `<div class="source-row" id="row-${s.key}"></div>`).join('');
   connected.forEach(s => renderSourceRow(s, 'waiting'));
 
-  // If signals already exist (resuming mid-onboarding), skip re-ingest.
-  const existing = await countSignals();
-  if (existing > 0) {
-    for (const s of connected) renderSourceRow(s, 'done', 'Already ingested');
+  // Per-source ingest: only ingest sources that have zero signals so far.
+  // A rebuild (ready → processing) will ingest any newly-connected source while
+  // skipping ones already imported. Fresh onboarding naturally ingests everything.
+  const perSourceCounts = await Promise.all(connected.map(s => countSignalsForSource(s.key)));
+  const toIngest = connected.filter((_, i) => perSourceCounts[i] === 0);
+  connected.forEach((s, i) => {
+    if (perSourceCounts[i] > 0) renderSourceRow(s, 'done', 'Already ingested');
+  });
+
+  if (toIngest.length === 0) {
+    // Nothing new to ingest — fine, proceed to build phase.
     return { ok: true, connected };
   }
 
-  const results = await Promise.all(connected.map(runIngest));
+  const results = await Promise.all(toIngest.map(runIngest));
   if (!results.some(r => r.ok)) {
-    showError('Ingest failed on all sources. Check the function logs and try again.');
+    showError('Ingest failed on all new sources. Check the function logs and try again.');
     return { ok: false, connected };
   }
   return { ok: true, connected };
@@ -454,15 +470,10 @@ async function init() {
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Guard: only users who've committed to onboarding (connect or processing) or are
-  // re-entering after a stall belong here. Ready users go to /ask.
-  // Welcome/connect states are allowed to resume here (e.g. manual visit), but we
-  // don't demote their state.
-  if (_auth.onboardingState === 'ready') {
-    // Nothing to do — already built. Bounce to ask.
-    window.location.replace('/ask');
-    return;
-  }
+  // Guard: welcome users haven't chosen anything yet — send them back to start.
+  // Ready users arriving here are running a user-initiated rebuild (Connect page's
+  // Rebuild CTA sets state=processing before navigating here). We accept them and
+  // re-assert state=processing below in case the transition write didn't land.
   if (_auth.onboardingState === 'welcome') {
     window.location.replace('/welcome');
     return;

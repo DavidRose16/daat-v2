@@ -3,150 +3,1209 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Daat</title>
+<title>Daat — Understand your company</title>
+<meta name="description" content="Daat turns fragmented company data into clear, usable context — for humans and agents. A structured understanding layer over Slack, Notion, QuickBooks and your internal tools.">
+<meta property="og:title" content="Daat — Understand your company">
+<meta property="og:description" content="A structured understanding layer over your company data. Context for humans and agents.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
+/* ============================================================
+   Daat landing — tokens aligned with /assets/daat-ui.css
+   ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-body {
-  background: #0f0f0f;
-  color: #e2e2e2;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-body.visible { opacity: 1; }
 
-/* Top bar */
-.top-bar {
+:root {
+  /* Brand greens — same palette as the product */
+  --brand-deep:  #1F5A35;
+  --brand-mid:   #22B07A;
+  --brand-soft:  #43C891;
+  --brand-glow:  #93EFBD;
+  --brand-tint:  #E8F8EF;
+
+  /* Surfaces */
+  --bg:              #FDFEFE;
+  --surface:         #FFFFFF;
+  --surface-raised:  #F6F7F8;
+  --surface-sunken:  #F1F2F4;
+
+  /* Ink */
+  --ink:        #0E1116;
+  --ink-soft:   #3A3F45;
+  --ink-softer: #6B7078;
+  --ink-faint:  #9BA0A8;
+
+  /* Borders */
+  --border:        #ECEEF1;
+  --border-soft:   #F2F4F6;
+
+  /* Fonts */
+  --font-display: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
+  /* Shadows */
+  --shadow-soft:     0 1px 2px rgba(15, 20, 30, 0.04), 0 8px 24px rgba(15, 20, 30, 0.06);
+  --shadow-elevated: 0 2px 4px rgba(15, 20, 30, 0.05), 0 20px 60px rgba(15, 20, 30, 0.10);
+  --shadow-glow:     0 0 80px rgba(34, 176, 122, 0.18);
+
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  letter-spacing: -0.003em;
+  min-height: 100vh;
+  visibility: hidden;
+}
+body.visible { visibility: visible; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--brand-glow); color: var(--ink); }
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  font-weight: 400;
+}
+em { font-style: normal; color: var(--brand-mid); }
+
+/* ============================================================
+   Utility primitives
+   ============================================================ */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+@media (min-width: 1024px) { .container { padding: 0 40px; } }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-softer);
+}
+.eyebrow::before { content: ''; display: block; width: 32px; height: 1px; background: rgba(14, 17, 22, 0.3); }
+.eyebrow.center::after { content: ''; display: block; width: 32px; height: 1px; background: rgba(14, 17, 22, 0.3); }
+
+.mono { font-family: var(--font-mono); font-feature-settings: "ss01"; }
+
+/* ============================================================
+   Nav
+   ============================================================ */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(253, 254, 254, 0.82);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border-soft);
+}
+.nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 32px;
-  flex-shrink: 0;
+  height: 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
-.top-brand {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #e2e2e2;
-}
-.top-right { display: flex; align-items: center; gap: 24px; }
-.top-link {
-  font-size: 13px;
-  font-weight: 500;
-  color: #555;
-  text-decoration: none;
-  transition: color 0.12s;
-}
-.top-link:hover { color: #aaa; }
+@media (min-width: 1024px) { .nav-inner { padding: 0 40px; } }
 
-/* Hero */
-.hero {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding: 48px 32px 96px;
-}
-.hero-inner { max-width: 600px; }
-
-.hero-headline {
-  font-size: clamp(34px, 5.5vw, 54px);
-  font-weight: 700;
-  color: #e2e2e2;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
-  margin-bottom: 22px;
-}
-.hero-body {
-  font-size: 16px;
-  line-height: 1.7;
-  color: #666;
-  margin-bottom: 36px;
-  max-width: 460px;
-}
-.hero-cta {
+.brand {
   display: inline-flex;
   align-items: center;
-  padding: 12px 26px;
-  background: #e2e2e2;
-  color: #0f0f0f;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
-  text-decoration: none;
-  letter-spacing: 0.01em;
-  transition: background 0.12s;
+  gap: 10px;
+  color: var(--ink);
 }
-.hero-cta:hover { background: #fff; }
+.brand img { width: 26px; height: 26px; object-fit: contain; display: block; }
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
 
-/* Sources row */
-.sources-row {
+.nav-links { display: none; align-items: center; gap: 36px; }
+@media (min-width: 768px) { .nav-links { display: flex; } }
+.nav-links a {
+  font-size: 14px;
+  color: var(--ink-soft);
+  transition: color 160ms var(--ease);
+}
+.nav-links a:hover { color: var(--ink); }
+
+.nav-cta { display: flex; align-items: center; gap: 8px; }
+.nav-signin {
+  display: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  transition: color 160ms var(--ease);
+}
+@media (min-width: 640px) { .nav-signin { display: inline-flex; } }
+.nav-signin:hover { color: var(--ink); }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: transform 160ms var(--ease), box-shadow 200ms var(--ease), background 160ms var(--ease);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--brand-deep);
+  color: #fff;
+  padding: 10px 20px;
+  box-shadow: var(--shadow-soft);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-elevated); background: #184527; }
+.btn-primary.btn-lg { padding: 14px 28px; box-shadow: var(--shadow-elevated); }
+.btn-primary.btn-lg:hover { box-shadow: var(--shadow-glow), var(--shadow-elevated); }
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border);
+  padding: 14px 28px;
+  box-shadow: var(--shadow-soft);
+}
+.btn-ghost:hover { transform: translateY(-1px); box-shadow: var(--shadow-elevated); }
+
+.btn .arrow { transition: transform 160ms var(--ease); }
+.btn:hover .arrow { transform: translateX(2px); }
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.hero-bg .blob1 {
+  position: absolute;
+  right: 0; top: 0;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: rgba(147, 239, 189, 0.12);
+  filter: blur(80px);
+}
+.hero-bg .blob2 {
+  position: absolute;
+  left: 30%; top: 160px;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  background: rgba(67, 200, 145, 0.08);
+  filter: blur(80px);
+}
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 64px;
+  padding: 80px 0 96px;
+}
+@media (min-width: 1024px) {
+  .hero-inner {
+    grid-template-columns: repeat(12, 1fr);
+    gap: 32px;
+    padding: 112px 0 128px;
+  }
+  .hero-text { grid-column: span 6; padding-top: 40px; }
+  .hero-visual { grid-column: span 6; }
+}
+
+.hero-headline {
+  font-size: clamp(52px, 7.5vw, 112px);
+  line-height: 0.98;
+  color: var(--ink);
+  margin-top: 40px;
+}
+.hero-body {
+  margin-top: 32px;
+  max-width: 560px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.hero-ctas {
+  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.sources {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+}
+.sources-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+}
+.sources-list {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+}
+.sources-list span {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: var(--ink-soft);
+}
+
+.hero-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   IntelligenceObject — SVG container
+   ============================================================ */
+.aperture { position: relative; aspect-ratio: 1; width: 100%; max-width: 560px; }
+.aperture .halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(147, 239, 189, 0.18);
+  filter: blur(60px);
+  pointer-events: none;
+}
+.aperture .halo-inner {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 50%; height: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(67, 200, 145, 0.28);
+  filter: blur(50px);
+  pointer-events: none;
+  animation: pulse-soft 3.2s ease-in-out infinite;
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.aperture .rotor { transform-origin: 280px 280px; animation: rotate-slow 60s linear infinite; }
+.aperture svg { position: relative; width: 100%; height: 100%; }
+.aperture .pulse-soft-svg { animation: pulse-soft 3.2s ease-in-out infinite; transform-origin: 280px 280px; }
+
+/* ============================================================
+   Section shell
+   ============================================================ */
+section.band {
+  border-top: 1px solid var(--border-soft);
+  padding: 112px 0;
+}
+@media (min-width: 1024px) { section.band { padding: 144px 0; } }
+
+section.band.raised {
+  background:
+    linear-gradient(180deg, #FBFCFC 0%, #F7F9F8 100%);
+}
+
+.section-head { max-width: 760px; margin-bottom: 80px; }
+.section-head h2 {
+  margin-top: 24px;
+  font-size: clamp(36px, 5vw, 56px);
+  line-height: 1.04;
+  color: var(--ink);
+}
+.section-head p {
+  margin-top: 24px;
+  max-width: 620px;
+  font-size: 18px;
+  color: var(--ink-soft);
+}
+
+/* ============================================================
+   Movements (#how)
+   ============================================================ */
+.movements-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 56px 48px;
+}
+@media (min-width: 768px) { .movements-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.movement .num-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.movement .num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+.movement .rule {
+  flex: 1;
+  margin-left: 16px;
+  height: 1px;
+  background: var(--border-soft);
+  transition: background 200ms var(--ease);
+}
+.movement:hover .rule { background: rgba(67, 200, 145, 0.4); }
+.movement h3 {
+  font-size: 26px;
+  color: var(--ink);
+}
+.movement p {
+  margin-top: 16px;
+  max-width: 380px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+/* ============================================================
+   SystemFlow (#system)
+   ============================================================ */
+.flow {
+  position: relative;
+}
+.flow-line {
+  position: absolute;
+  left: 6%; right: 6%; top: 58px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(67, 200, 145, 0.4), transparent);
+  pointer-events: none;
+  display: none;
+}
+@media (min-width: 768px) { .flow-line { display: block; } }
+
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+}
+@media (min-width: 768px) { .flow-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; } }
+
+.stage .node-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 40px;
-  flex-wrap: wrap;
+  margin-bottom: 24px;
 }
-.sources-label {
-  font-size: 11px;
-  color: #333;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-.source-pill {
-  font-size: 11px;
-  color: #3a3a3a;
-  padding: 3px 10px;
-  border: 1px solid #1e1e1e;
-  border-radius: 20px;
-  letter-spacing: 0.02em;
-}
-
-/* Footer */
-.landing-footer {
-  border-top: 1px solid #141414;
-  padding: 14px 32px;
+.stage .node {
+  position: relative;
+  z-index: 1;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
+  justify-content: center;
 }
-.footer-note { font-size: 11px; color: #222; }
+.stage .node::after {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--brand-deep), var(--brand-soft));
+}
+.stage .stage-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+.stage h3 {
+  font-size: 22px;
+  color: var(--ink);
+}
+.stage .sub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--ink-softer);
+}
+.stage ul {
+  margin-top: 24px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stage ul li {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--ink-softer);
+}
+
+/* ============================================================
+   Problem
+   ============================================================ */
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 64px;
+}
+@media (min-width: 1024px) {
+  .problem-grid { grid-template-columns: repeat(12, 1fr); gap: 48px; }
+  .problem-left { grid-column: span 5; }
+  .problem-right { grid-column: span 7; }
+}
+
+.problem-left h2 {
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.02;
+  color: var(--ink);
+  margin-top: 24px;
+}
+.problem-left p {
+  margin-top: 32px;
+  max-width: 440px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.frag-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) { .frag-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.frag {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow 200ms var(--ease), transform 200ms var(--ease);
+}
+.frag:hover { box-shadow: var(--shadow-elevated); }
+.frag.stagger { transform: translateY(12px); }
+.frag .frag-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.frag h4 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-weight: 400;
+}
+.frag .note {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-softer);
+}
+.frag .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(107, 112, 120, 0.22);
+  transition: background 200ms var(--ease);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.frag:hover .dot { background: var(--brand-soft); }
+.frag .ticks {
+  margin-top: 24px;
+  display: flex;
+  gap: 4px;
+}
+.frag .ticks span {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ============================================================
+   ForTeams (#teams)
+   ============================================================ */
+.teams-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 64px;
+}
+@media (min-width: 1024px) { .teams-grid { grid-template-columns: repeat(2, 1fr); gap: 96px; } }
+
+.teams-col h3 {
+  margin-top: 24px;
+  font-size: clamp(28px, 3.4vw, 38px);
+  line-height: 1.15;
+  color: var(--ink);
+}
+.teams-col > p {
+  margin-top: 24px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.card-light {
+  margin-top: 40px;
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-soft);
+}
+.card-light .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+.card-light .quote {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.card-light .meta {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-softer);
+}
+.card-light .meta .pulse,
+.card-dark .meta .pulse {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  animation: pulse-soft 3.2s ease-in-out infinite;
+}
+
+.card-dark {
+  margin-top: 40px;
+  background: var(--brand-deep);
+  color: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-elevated);
+}
+.card-dark .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+}
+.card-dark pre {
+  margin-top: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  opacity: 0.92;
+  overflow-x: auto;
+}
+.card-dark .meta {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0.7;
+}
+.card-dark .meta .pulse { background: var(--brand-glow); }
+
+/* ============================================================
+   CTA
+   ============================================================ */
+.cta {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  padding: 112px 0;
+  border-top: 1px solid var(--border-soft);
+}
+@media (min-width: 1024px) { .cta { padding: 144px 0; } }
+.cta-bg {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 800px; height: 500px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(147, 239, 189, 0.16);
+  filter: blur(80px);
+  z-index: -1;
+  pointer-events: none;
+}
+.cta-inner { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+.cta h2 {
+  margin-top: 32px;
+  font-size: clamp(44px, 6vw, 88px);
+  line-height: 1.02;
+  color: var(--ink);
+}
+.cta p {
+  margin: 32px auto 0;
+  max-width: 560px;
+  font-size: 18px;
+  color: var(--ink-soft);
+}
+.cta-ctas {
+  margin-top: 48px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+.cta .btn-primary.btn-xl { padding: 16px 32px; }
+.cta .btn-ghost.btn-xl { padding: 16px 32px; }
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.site-footer {
+  border-top: 1px solid var(--border-soft);
+  padding: 56px 0;
+}
+.site-footer .inner {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+@media (min-width: 1024px) {
+  .site-footer .inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+  }
+}
+.site-footer .brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.site-footer .brand-row img { width: 24px; height: 24px; object-fit: contain; }
+.site-footer .brand-row .name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--ink);
+}
+.site-footer .brand-row .tag {
+  margin-left: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.footer-links a { transition: color 160ms var(--ease); }
+.footer-links a:hover { color: var(--ink); }
+.footer-copy {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
 </style>
 </head>
 <body>
 
-<div class="top-bar">
-  <span class="top-brand">Daat</span>
-  <div class="top-right">
-    <a href="/login" class="top-link">Sign in →</a>
-  </div>
-</div>
-
-<div class="hero">
-  <div class="hero-inner">
-    <h1 class="hero-headline">Know what's happening<br>in your organization.</h1>
-    <p class="hero-body">Connect your tools. Ask a question. Daat reads your data and tells you what actually matters — decisions, blockers, and context drawn directly from your sources.</p>
-    <a href="/login" class="hero-cta">Get started</a>
-    <div class="sources-row">
-      <span class="sources-label">Works with</span>
-      <span class="source-pill">Slack</span>
-      <span class="source-pill">Notion</span>
-      <span class="source-pill">QuickBooks</span>
-      <span class="source-pill">Google Workspace</span>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <img src="/assets/Daat-Logo.png" alt="Daat">
+      <span class="brand-name">Daat</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#system">System</a>
+      <a href="#teams">For teams &amp; agents</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-signin" href="/login">Sign in</a>
+      <a class="btn btn-primary" href="/login">Try Daat <span class="arrow" aria-hidden>→</span></a>
     </div>
   </div>
-</div>
+</header>
 
-<div class="landing-footer">
-  <span class="footer-note">daatview.com</span>
-</div>
+<main>
+
+  <!-- ────────── HERO ────────── -->
+  <section class="hero">
+    <div class="hero-bg" aria-hidden>
+      <div class="blob1"></div>
+      <div class="blob2"></div>
+    </div>
+    <div class="container">
+      <div class="hero-inner">
+        <div class="hero-text">
+          <div class="eyebrow">Daat / Understanding Layer</div>
+          <h1 class="hero-headline">Understand<br>your <em>company.</em></h1>
+          <p class="hero-body">Daat turns fragmented company data into clear, usable context — for humans and agents.</p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary btn-lg" href="/login">Try Daat <span class="arrow" aria-hidden>→</span></a>
+            <a class="btn btn-ghost" href="#how">See how it works</a>
+          </div>
+          <div class="sources">
+            <div class="sources-label">Reads from</div>
+            <div class="sources-list">
+              <span>Slack</span>
+              <span>Notion</span>
+              <span>QuickBooks</span>
+              <span>Google Workspace</span>
+              <span>Linear</span>
+              <span>Internal tools</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="aperture">
+            <div class="halo" aria-hidden></div>
+            <div class="halo-inner" aria-hidden></div>
+            <svg viewBox="0 0 560 560" fill="none" aria-hidden>
+              <defs>
+                <radialGradient id="core" cx="0.5" cy="0.45" r="0.5">
+                  <stop offset="0%"  stop-color="#CFF5DD"/>
+                  <stop offset="35%" stop-color="#6FD2A3"/>
+                  <stop offset="75%" stop-color="#268F5D"/>
+                  <stop offset="100%" stop-color="#143E25"/>
+                </radialGradient>
+                <radialGradient id="specular" cx="0.42" cy="0.32" r="0.35">
+                  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+                  <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="60%" stop-color="#9BE6C1" stop-opacity="0"/>
+                  <stop offset="80%" stop-color="#9BE6C1" stop-opacity="0.35"/>
+                  <stop offset="100%" stop-color="#9BE6C1" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#5EBF8A" stop-opacity="0"/>
+                  <stop offset="100%" stop-color="#2A8F5C" stop-opacity="0.85"/>
+                </linearGradient>
+                <radialGradient id="satellite" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0%" stop-color="#A9E6C6"/>
+                  <stop offset="100%" stop-color="#3A8F63"/>
+                </radialGradient>
+              </defs>
+
+              <!-- instrument crosshairs -->
+              <g stroke="#567C68" stroke-width="0.6" opacity="0.45">
+                <g><line x1="53" y1="60" x2="67" y2="60"/><line x1="60" y1="53" x2="60" y2="67"/></g>
+                <g><line x1="493" y1="60" x2="507" y2="60"/><line x1="500" y1="53" x2="500" y2="67"/></g>
+                <g><line x1="53" y1="500" x2="67" y2="500"/><line x1="60" y1="493" x2="60" y2="507"/></g>
+                <g><line x1="493" y1="500" x2="507" y2="500"/><line x1="500" y1="493" x2="500" y2="507"/></g>
+              </g>
+              <g font-family="ui-monospace, SFMono-Regular, monospace" font-size="9" fill="#618078" opacity="0.6" letter-spacing="2">
+                <text x="60" y="50">DAAT · APERTURE</text>
+                <text x="500" y="50" text-anchor="end">N=06</text>
+                <text x="60" y="520">∞ SIGNAL</text>
+                <text x="500" y="520" text-anchor="end">→ CONTEXT</text>
+              </g>
+
+              <!-- concentric reference rings -->
+              <g stroke="#5EBF8A" fill="none" opacity="0.18">
+                <circle cx="280" cy="280" r="220" stroke-dasharray="2 6"/>
+                <circle cx="280" cy="280" r="170" stroke-dasharray="2 6"/>
+                <circle cx="280" cy="280" r="125"/>
+              </g>
+
+              <!-- tick marks on outer ring -->
+              <g stroke="#4E9D73" stroke-width="1" opacity="0.5">
+                <!-- generated 24 ticks -->
+                <line x1="500" y1="280" x2="510" y2="280"/>
+                <line x1="497.89" y1="296.91" x2="501.50" y2="298.41"/>
+                <line x1="490.53" y1="312.40" x2="493.22" y2="313.39"/>
+                <line x1="475.56" y1="329.36" x2="482.63" y2="336.43"/>
+                <line x1="462.35" y1="339.30" x2="464.40" y2="342.39"/>
+                <line x1="447.14" y1="347.18" x2="448.80" y2="350.49"/>
+                <line x1="390" y1="370.53" x2="396.07" y2="378.50"/>
+                <line x1="368.74" y1="375.32" x2="370.16" y2="379.07"/>
+                <line x1="343.80" y1="381.73" x2="345.17" y2="385.39"/>
+                <line x1="280" y1="390" x2="280" y2="400"/>
+                <line x1="216.20" y1="381.73" x2="214.83" y2="385.39"/>
+                <line x1="191.26" y1="375.32" x2="189.84" y2="379.07"/>
+                <line x1="170" y1="370.53" x2="163.93" y2="378.50"/>
+                <line x1="132.86" y1="347.18" x2="131.20" y2="350.49"/>
+                <line x1="117.65" y1="339.30" x2="115.60" y2="342.39"/>
+                <line x1="104.44" y1="329.36" x2="97.37" y2="336.43"/>
+                <line x1="89.47" y1="312.40" x2="86.78" y2="313.39"/>
+                <line x1="82.11" y1="296.91" x2="78.50" y2="298.41"/>
+                <line x1="60" y1="280" x2="50" y2="280"/>
+                <line x1="82.11" y1="263.09" x2="78.50" y2="261.59"/>
+                <line x1="89.47" y1="247.60" x2="86.78" y2="246.61"/>
+                <line x1="104.44" y1="230.64" x2="97.37" y2="223.57"/>
+                <line x1="117.65" y1="220.70" x2="115.60" y2="217.61"/>
+                <line x1="132.86" y1="212.82" x2="131.20" y2="209.51"/>
+                <line x1="170" y1="189.47" x2="163.93" y2="181.50"/>
+                <line x1="191.26" y1="184.68" x2="189.84" y2="180.93"/>
+                <line x1="216.20" y1="178.27" x2="214.83" y2="174.61"/>
+                <line x1="280" y1="170" x2="280" y2="160"/>
+                <line x1="343.80" y1="178.27" x2="345.17" y2="174.61"/>
+                <line x1="368.74" y1="184.68" x2="370.16" y2="180.93"/>
+                <line x1="390" y1="189.47" x2="396.07" y2="181.50"/>
+                <line x1="427.14" y1="212.82" x2="428.80" y2="209.51"/>
+                <line x1="442.35" y1="220.70" x2="444.40" y2="217.61"/>
+                <line x1="455.56" y1="230.64" x2="462.63" y2="223.57"/>
+                <line x1="470.53" y1="247.60" x2="473.22" y2="246.61"/>
+                <line x1="477.89" y1="263.09" x2="481.50" y2="261.59"/>
+              </g>
+
+              <!-- slowly rotating outer ring -->
+              <g class="rotor">
+                <circle cx="280" cy="280" r="220" stroke="#3A8F63" stroke-width="0.6" fill="none" opacity="0.3"/>
+                <circle cx="500" cy="280" r="2.5" fill="#2A8F5C"/>
+                <circle cx="170" cy="470.53" r="2.5" fill="#2A8F5C"/>
+                <circle cx="170" cy="89.47" r="2.5" fill="#2A8F5C"/>
+              </g>
+
+              <!-- satellites + converging arcs -->
+              <g id="satellites"></g>
+
+              <!-- halo behind core -->
+              <circle class="pulse-soft-svg" cx="280" cy="280" r="100" fill="url(#halo)"/>
+              <!-- core orb -->
+              <circle cx="280" cy="280" r="62" fill="url(#core)"/>
+              <circle cx="280" cy="280" r="62" fill="none" stroke="#FFFFFF" stroke-width="0.6" opacity="0.4"/>
+              <circle cx="280" cy="280" r="48" fill="none" stroke="#FFFFFF" stroke-width="0.4" opacity="0.25"/>
+              <ellipse cx="263" cy="260" rx="22" ry="14" fill="url(#specular)"/>
+              <g stroke="#FFFFFF" stroke-width="0.6" opacity="0.5">
+                <line x1="272" y1="280" x2="288" y2="280"/>
+                <line x1="280" y1="272" x2="280" y2="288"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── MOVEMENTS ────────── -->
+  <section id="how" class="band">
+    <div class="container">
+      <header class="section-head">
+        <div class="eyebrow">How it works</div>
+        <h2>Three movements.<br><em>One system.</em></h2>
+      </header>
+      <div class="movements-grid">
+        <article class="movement">
+          <div class="num-row"><span class="num">01</span><span class="rule"></span></div>
+          <h3>Connect</h3>
+          <p>Plug Daat into the systems your work already lives in. Slack, Notion, QuickBooks, internal tools — without moving anything.</p>
+        </article>
+        <article class="movement">
+          <div class="num-row"><span class="num">02</span><span class="rule"></span></div>
+          <h3>Build</h3>
+          <p>Daat reads fragmented signals and structures them into a coherent model of how your company actually operates.</p>
+        </article>
+        <article class="movement">
+          <div class="num-row"><span class="num">03</span><span class="rule"></span></div>
+          <h3>Ask</h3>
+          <p>Query the model in natural language. Hand it to agents. Ground every decision in what is actually true, right now.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── SYSTEM FLOW ────────── -->
+  <section id="system" class="band raised">
+    <div class="container">
+      <header class="section-head">
+        <div class="eyebrow">The system</div>
+        <h2>From signal to <em>understanding.</em></h2>
+        <p>A continuous flow — from where your work happens, to a structured model your team and agents can trust.</p>
+      </header>
+      <div class="flow">
+        <div class="flow-line" aria-hidden></div>
+        <div class="flow-grid">
+          <div class="stage">
+            <div class="node-row"><div class="node" aria-hidden></div><span class="stage-label">Stage 01</span></div>
+            <h3>Sources</h3>
+            <div class="sub">Where work lives</div>
+            <ul><li>— Slack</li><li>— Notion</li><li>— QuickBooks</li><li>— Linear</li></ul>
+          </div>
+          <div class="stage">
+            <div class="node-row"><div class="node" aria-hidden></div><span class="stage-label">Stage 02</span></div>
+            <h3>Signals</h3>
+            <div class="sub">Raw, fragmented</div>
+            <ul><li>— Messages</li><li>— Docs</li><li>— Ledgers</li><li>— Tickets</li></ul>
+          </div>
+          <div class="stage">
+            <div class="node-row"><div class="node" aria-hidden></div><span class="stage-label">Stage 03</span></div>
+            <h3>Structuring</h3>
+            <div class="sub">Into a model</div>
+            <ul><li>— Entities</li><li>— Relations</li><li>— Timeline</li><li>— State</li></ul>
+          </div>
+          <div class="stage">
+            <div class="node-row"><div class="node" aria-hidden></div><span class="stage-label">Stage 04</span></div>
+            <h3>Context</h3>
+            <div class="sub">Usable understanding</div>
+            <ul><li>— Answers</li><li>— Summaries</li><li>— Agent input</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── PROBLEM ────────── -->
+  <section class="band">
+    <div class="container">
+      <div class="problem-grid">
+        <div class="problem-left">
+          <div class="eyebrow">The problem</div>
+          <h2>Data is abundant.<br><em>Context is absent.</em></h2>
+          <p>Modern companies generate immense volumes of signal. None of it lives in one place. None of it knows about the rest. Daat builds the layer that does.</p>
+        </div>
+        <div class="problem-right">
+          <div class="frag-grid">
+            <div class="frag">
+              <div class="frag-head"><div><h4>Fragmented memory</h4><div class="note">spread across 11 tools</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="frag stagger">
+              <div class="frag-head"><div><h4>Silos</h4><div class="note">no shared truth</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="frag">
+              <div class="frag-head"><div><h4>Stale data</h4><div class="note">last touched 47 days ago</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="frag stagger">
+              <div class="frag-head"><div><h4>Guesswork</h4><div class="note">decisions without grounding</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="frag">
+              <div class="frag-head"><div><h4>Repeated questions</h4><div class="note">asked weekly, never resolved</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="frag stagger">
+              <div class="frag-head"><div><h4>Lost context</h4><div class="note">leaves when people do</div></div><div class="dot"></div></div>
+              <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── FOR TEAMS ────────── -->
+  <section id="teams" class="band">
+    <div class="container">
+      <div class="teams-grid">
+        <div class="teams-col">
+          <div class="eyebrow">For humans</div>
+          <h3>A shared mind for your team.</h3>
+          <p>Ask anything about your company. Get answers grounded in real signal — with the trail back to the source. No more pinging six people to assemble a single truth.</p>
+          <div class="card-light">
+            <div class="label">Ask Daat</div>
+            <div class="quote">"What changed in our pricing assumptions last quarter?"</div>
+            <div class="meta"><span class="pulse"></span>grounded across Notion · Slack · QuickBooks</div>
+          </div>
+        </div>
+        <div class="teams-col">
+          <div class="eyebrow">For agents</div>
+          <h3>The context layer agents need to act.</h3>
+          <p>Agents fail because they lack situational understanding. Daat gives them a structured, queryable view of the organization — so their decisions are grounded, not guessed.</p>
+          <div class="card-dark">
+            <div class="label">Agent context</div>
+<pre>daat.context({
+  scope: "org",
+  fresh: true,
+  ground: ["slack", "notion", "qb"]
+})</pre>
+            <div class="meta"><span class="pulse"></span>returns structured org context</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── CTA ────────── -->
+  <section class="cta">
+    <div class="cta-bg" aria-hidden></div>
+    <div class="cta-inner">
+      <div class="eyebrow center">Begin</div>
+      <h2>Give your company<br><em>a thinking surface.</em></h2>
+      <p>Start with one connection. See your organization become legible — to you, your team, and the agents you work with.</p>
+      <div class="cta-ctas">
+        <a class="btn btn-primary btn-xl" href="/login">Try Daat <span class="arrow" aria-hidden>→</span></a>
+        <a class="btn btn-ghost btn-xl" href="/login">Sign in</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="inner">
+    <div class="brand-row">
+      <img src="/assets/Daat-Logo.png" alt="Daat">
+      <span class="name">Daat</span>
+      <span class="tag">Understanding layer</span>
+    </div>
+    <div class="footer-links">
+      <a href="#how">How it works</a>
+      <a href="#system">System</a>
+      <a href="#teams">For teams &amp; agents</a>
+      <a href="/login">Sign in</a>
+    </div>
+    <div class="footer-copy" id="copy">© Daat</div>
+  </div>
+</footer>
+
+<script>
+// Build satellite nodes + converging arcs + animated pulses.
+(function () {
+  const g = document.getElementById('satellites');
+  if (!g) return;
+  const SVG = 'http://www.w3.org/2000/svg';
+  const satellites = [
+    { angle: -110, label: 'slack' },
+    { angle: -45,  label: 'notion' },
+    { angle: 25,   label: 'quickbooks' },
+    { angle: 85,   label: 'linear' },
+    { angle: 155,  label: 'drive' },
+    { angle: 215,  label: 'tools' },
+  ];
+  satellites.forEach((s, i) => {
+    const a = (s.angle * Math.PI) / 180;
+    const sx = 280 + Math.cos(a) * 200;
+    const sy = 280 + Math.sin(a) * 200;
+    const cx1 = 280 + Math.cos(a) * 110;
+    const cy1 = 280 + Math.sin(a) * 110;
+    const tangent = a + Math.PI / 2;
+    const cx2 = cx1 + Math.cos(tangent) * 30;
+    const cy2 = cy1 + Math.sin(tangent) * 30;
+    const ex = 280 + Math.cos(a) * 70;
+    const ey = 280 + Math.sin(a) * 70;
+    const pathD = `M ${sx} ${sy} Q ${cx2} ${cy2} ${ex} ${ey}`;
+
+    const sub = document.createElementNS(SVG, 'g');
+
+    const arc = document.createElementNS(SVG, 'path');
+    arc.setAttribute('d', pathD);
+    arc.setAttribute('stroke', 'url(#arc)');
+    arc.setAttribute('stroke-width', '1.2');
+    arc.setAttribute('fill', 'none');
+    arc.setAttribute('stroke-linecap', 'round');
+    sub.appendChild(arc);
+
+    const pulseDur = (3 + (i % 3)) + 's';
+    const begin = (i * 0.4) + 's';
+
+    const pulse = document.createElementNS(SVG, 'circle');
+    pulse.setAttribute('r', '2.5');
+    pulse.setAttribute('fill', '#BEEBD4');
+    const motion = document.createElementNS(SVG, 'animateMotion');
+    motion.setAttribute('dur', pulseDur);
+    motion.setAttribute('repeatCount', 'indefinite');
+    motion.setAttribute('begin', begin);
+    motion.setAttribute('path', pathD);
+    pulse.appendChild(motion);
+    const opacityAnim = document.createElementNS(SVG, 'animate');
+    opacityAnim.setAttribute('attributeName', 'opacity');
+    opacityAnim.setAttribute('values', '0;1;1;0');
+    opacityAnim.setAttribute('dur', pulseDur);
+    opacityAnim.setAttribute('repeatCount', 'indefinite');
+    opacityAnim.setAttribute('begin', begin);
+    pulse.appendChild(opacityAnim);
+    sub.appendChild(pulse);
+
+    const ring = document.createElementNS(SVG, 'circle');
+    ring.setAttribute('cx', sx); ring.setAttribute('cy', sy); ring.setAttribute('r', '14');
+    ring.setAttribute('fill', '#FDFEFE');
+    ring.setAttribute('stroke', '#B9DCC8'); ring.setAttribute('stroke-width', '0.5');
+    sub.appendChild(ring);
+
+    const dot = document.createElementNS(SVG, 'circle');
+    dot.setAttribute('cx', sx); dot.setAttribute('cy', sy); dot.setAttribute('r', '6');
+    dot.setAttribute('fill', 'url(#satellite)');
+    sub.appendChild(dot);
+
+    const outer = document.createElementNS(SVG, 'circle');
+    outer.setAttribute('cx', sx); outer.setAttribute('cy', sy); outer.setAttribute('r', '22');
+    outer.setAttribute('fill', 'none');
+    outer.setAttribute('stroke', '#4E9D73'); outer.setAttribute('stroke-width', '0.4');
+    outer.setAttribute('opacity', '0.4');
+    sub.appendChild(outer);
+
+    const label = document.createElementNS(SVG, 'text');
+    label.setAttribute('x', sx + Math.cos(a) * 32);
+    label.setAttribute('y', sy + Math.sin(a) * 32 + 3);
+    label.setAttribute('text-anchor', Math.cos(a) > 0.3 ? 'start' : Math.cos(a) < -0.3 ? 'end' : 'middle');
+    label.setAttribute('font-family', 'ui-monospace, monospace');
+    label.setAttribute('font-size', '9');
+    label.setAttribute('letter-spacing', '1.5');
+    label.setAttribute('fill', '#4E6F5E');
+    label.setAttribute('opacity', '0.75');
+    label.textContent = s.label;
+    sub.appendChild(label);
+
+    g.appendChild(sub);
+  });
+})();
+
+// Footer year.
+document.getElementById('copy').textContent = '© ' + new Date().getFullYear() + ' Daat';
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+// ============================================================
+// Auth gate — signed-in users never see the landing.
+// Anonymous visitors see the marketing page.
+// ============================================================
 const SB_URL  = 'https://wkimwkhysvvkrujsefyv.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraW13a2h5c3Z2a3J1anNlZnl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzA1ODMsImV4cCI6MjA4OTQ0NjU4M30.5VqJrBgElAzrkWnsT3Kza0tFlwUvYSMrv-lbgnpBymM';
 const sb = window.supabase.createClient(SB_URL, SB_ANON);
@@ -154,8 +1213,7 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
 
-  // If an OAuth callback redirected here with status params, forward to /connect
-  // so the user lands back in the onboarding flow with feedback visible.
+  // OAuth callback landed here with status params — forward to /connect.
   const qs = new URLSearchParams(window.location.search);
   if (session && qs.get('integration')) {
     window.location.replace('/connect' + window.location.search);
@@ -179,8 +1237,6 @@ const sb = window.supabase.createClient(SB_URL, SB_ANON);
     return;
   }
 
-  // Route by explicit onboarding_state. Data existence is a fallback only for
-  // rows somehow missing the column (shouldn't happen post-migration).
   const state = profile.workspaces?.onboarding_state || 'welcome';
   const dest =
     state === 'ready'      ? '/ask' :

@@ -1,0 +1,12 @@
+project_id = "wkimwkhysvvkrujsefyv"
+
+# Per-function gateway config. Matches how the other frontend-facing functions
+# (ingests, synthesize, oauth helpers) are deployed: verify_jwt = false.
+# Comprehend uses the service role key internally for all DB access, so gateway
+# JWT verification adds no security value — only failure modes.
+#
+# Without this block, a `supabase functions deploy comprehend` reverts to the
+# CLI's default (verify_jwt = true), which is what produced the 401 loop.
+
+[functions.comprehend]
+verify_jwt = false

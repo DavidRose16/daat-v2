@@ -115,6 +115,13 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .continue-btn:hover:not(:disabled) { background: #fff; }
 .continue-btn:disabled { opacity: .35; cursor: not-allowed; }
 
+.secondary-link {
+  background: transparent; border: none; color: var(--text-dimmer);
+  font-size: 12px; cursor: pointer; padding: 6px 10px; margin-right: 4px;
+  transition: color .12s;
+}
+.secondary-link:hover { color: var(--text-dim); }
+
 .error-box {
   display: none;
   background: #1a0808; border: 1px solid #4d1a1a;
@@ -122,6 +129,13 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   font-size: 13px; line-height: 1.6;
 }
 .error-box.visible { display: block; }
+
+.phase-error-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #3a1a1a; color: #f87171;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
 
 .phase-hidden { display: none !important; }
 
@@ -178,9 +192,12 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 <div class="continue-bar">
   <span class="continue-status" id="continueStatus">Preparing your workspace…</span>
-  <button class="continue-btn" id="continueBtn" disabled>
-    <span>Enter Daat</span><span>→</span>
-  </button>
+  <div style="display:flex;align-items:center;gap:4px;">
+    <button class="secondary-link" id="secondaryBtn" style="display:none"></button>
+    <button class="continue-btn" id="continueBtn" disabled>
+      <span id="continueLabel">Enter Daat</span><span id="continueArrow">→</span>
+    </button>
+  </div>
 </div>
 
 <script>
@@ -240,11 +257,45 @@ function renderSourceRow(source, state, detail) {
   `;
 }
 
-function showError(message) {
+// headline is what to put in the phase-text line (e.g. "Build failed on Slack.").
+// detail is the full technical message for the error box (e.g. "Slack: HTTP 401").
+// allowRetry controls whether the primary CTA becomes "Retry"; Back to Connect
+// is always offered as a secondary action.
+function showError(headline, detail, { allowRetry = true } = {}) {
+  // Stop the spinner and re-paint the phase line in an error state.
+  const phaseEl = document.getElementById('phaseText');
+  if (phaseEl) {
+    phaseEl.innerHTML = `<span class="phase-error-glyph">!</span><span>${esc(headline)}</span>`;
+  }
+
   const box = document.getElementById('errorBox');
-  box.textContent = message;
+  box.textContent = detail;
   box.classList.add('visible');
-  document.getElementById('continueStatus').textContent = 'Something went wrong.';
+
+  // Re-theme the continue bar for recovery.
+  const status    = document.getElementById('continueStatus');
+  const btn       = document.getElementById('continueBtn');
+  const label     = document.getElementById('continueLabel');
+  const arrow     = document.getElementById('continueArrow');
+  const secondary = document.getElementById('secondaryBtn');
+
+  status.textContent = headline;
+  status.className = 'continue-status';
+
+  if (allowRetry) {
+    label.textContent = 'Retry';
+    arrow.textContent = '↻';
+    btn.disabled = false;
+    btn.onclick = () => window.location.reload();
+  } else {
+    label.textContent = 'Enter Daat';
+    arrow.textContent = '→';
+    btn.disabled = true;
+  }
+
+  secondary.style.display = '';
+  secondary.textContent = 'Back to Connect';
+  secondary.onclick = () => { window.location.href = '/connect'; };
 }
 
 async function showSuccessAndAdvance(totalBuilt) {
@@ -326,7 +377,7 @@ async function runIngest(source) {
 async function phaseIngest() {
   const connected = await getConnectedSources();
   if (connected.length === 0) {
-    showError('No connected sources. Go back to Connect to add one.');
+    showError('No connected sources.', 'Go back to Connect to add one.', { allowRetry: false });
     return { ok: false, connected: [] };
   }
 
@@ -350,7 +401,7 @@ async function phaseIngest() {
 
   const results = await Promise.all(toIngest.map(runIngest));
   if (!results.some(r => r.ok)) {
-    showError('Ingest failed on all new sources. Check the function logs and try again.');
+    showError('Ingest failed on all new sources.', 'Check the function logs for details and retry, or go back and reconnect the source.');
     return { ok: false, connected };
   }
   return { ok: true, connected };
@@ -409,7 +460,7 @@ async function phaseBuild() {
       await showSuccessAndAdvance(built);
       return true;
     }
-    showError('No material to build with. Go back and ingest some sources.');
+    showError('No material to build with.', 'Go back and connect at least one source.', { allowRetry: false });
     return false;
   }
 
@@ -437,9 +488,9 @@ async function phaseBuild() {
           consecutiveNoProgress++;
           if (consecutiveNoProgress >= 2) {
             if (failed > 0) {
-              showError(`Build stalled on ${SOURCE_LABEL[source]}. ${failed} item${failed !== 1 ? 's' : ''} could not be processed. Check the function logs for details.`);
+              showError(`Build stalled on ${SOURCE_LABEL[source]}.`, `${failed} item${failed !== 1 ? 's' : ''} could not be processed. Check the function logs for details.`);
             } else {
-              showError(`Build stalled on ${SOURCE_LABEL[source]} with no progress. Please retry.`);
+              showError(`Build stalled on ${SOURCE_LABEL[source]}.`, 'No progress across two consecutive batches. Retry the build.');
             }
             return false;
           }
@@ -452,7 +503,7 @@ async function phaseBuild() {
           setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
         }
       } catch (e) {
-        showError(`${SOURCE_LABEL[source]}: ${e.message}`);
+        showError(`Build failed on ${SOURCE_LABEL[source]}.`, `${SOURCE_LABEL[source]}: ${e.message}`);
         return false;
       }
     }

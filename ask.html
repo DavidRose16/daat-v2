@@ -4,175 +4,262 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ask — Daat</title>
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0f0f0f;
-    --card: #111111;
-    --border: #1e1e1e;
-    --border2: #2a2a2a;
-    --text: #e2e2e2;
-    --text-dim: #888;
-    --text-dimmer: #555;
-    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --amber: #f59e0b;
-    --amber-bg: #140f00;
-    --amber-border: #2e2000;
-    --amber-text: #e8c97a;
+  .ask-heading {
+    margin-bottom: 40px;
   }
-  html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+  .ask-heading .eyebrow { margin-bottom: 14px; }
+  .ask-heading h1       { margin-bottom: 10px; }
+  .ask-heading .lede    { max-width: 540px; }
 
-  /* Nav */
-  .nav { display: flex; align-items: center; background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 0 20px; position: sticky; top: 0; z-index: 50; }
-  .nav-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); padding: 12px 20px 12px 0; border-right: 1px solid var(--border); margin-right: 4px; flex-shrink: 0; }
-  .nav-tab { font-size: 12px; font-weight: 500; padding: 14px 16px; color: var(--text-dimmer); text-decoration: none; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; white-space: nowrap; }
-  .nav-tab:hover { color: var(--text-dim); }
-  .nav-tab.active { color: var(--text); border-bottom-color: #555; }
-  .nav-spacer { flex: 1; }
-
-  /* Page */
-  .page { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
-
-  /* Form */
-  .form-section { margin-bottom: 20px; }
-  .form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dimmer); margin-bottom: 8px; display: block; }
-  .form-label .label-hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-dimmer); }
-
-  /* Intent control */
-  .intent-group { display: flex; border: 1px solid var(--border2); border-radius: 7px; overflow: hidden; width: fit-content; }
-  .intent-btn { font-size: 12px; font-weight: 500; padding: 7px 18px; background: transparent; color: var(--text-dimmer); border: none; cursor: pointer; transition: background .12s, color .12s; white-space: nowrap; line-height: 1; }
-  .intent-btn + .intent-btn { border-left: 1px solid var(--border2); }
-  .intent-btn:hover { color: var(--text); background: #161616; }
-  .intent-btn.selected { background: #1e1e1e; color: var(--text); }
-
-  /* Task */
-  .task-input {
-    width: 100%; background: #0c0c0c; border: 1px solid var(--border2);
-    border-radius: 8px; padding: 12px 14px; font-size: 14px;
-    color: var(--text); font-family: var(--sans); resize: vertical;
-    min-height: 88px; transition: border-color .15s; outline: none; line-height: 1.55;
+  /* Query surface */
+  .ask-form {
+    border-top: 2px solid var(--ink);
+    padding-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
-  .task-input:focus { border-color: #3a3a3a; }
-  .task-input::placeholder { color: var(--text-dimmer); }
 
-  /* Entities */
-  .entities-input {
-    width: 100%; background: #0c0c0c; border: 1px solid var(--border2);
-    border-radius: 8px; padding: 9px 14px; font-size: 13px;
-    color: var(--text); font-family: var(--sans); transition: border-color .15s; outline: none;
+  .ask-submit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 4px;
   }
-  .entities-input:focus { border-color: #3a3a3a; }
-  .entities-input::placeholder { color: var(--text-dimmer); }
+  .ask-submit-hint {
+    font-size: 12px;
+    color: var(--ink-3);
+    letter-spacing: 0.01em;
+  }
+  .ask-submit-hint kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 5px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+  }
 
-  /* Ask button */
-  .ask-btn {
-    width: 100%; padding: 11px; background: #141414; border: 1px solid var(--border2);
-    border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text);
-    cursor: pointer; transition: background .12s, border-color .12s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  .ask-btn:hover:not(:disabled) { background: #1c1c1c; border-color: #3a3a3a; }
-  .ask-btn:disabled { opacity: .45; cursor: default; }
-  .ask-spinner { width: 13px; height: 13px; border: 2px solid #333; border-top-color: var(--text-dim); border-radius: 50%; animation: spin .7s linear infinite; display: none; }
-  .ask-btn.running .ask-spinner { display: block; }
+  .ask-btn { min-width: 120px; justify-content: center; }
+  .ask-btn .spinner { width: 13px; height: 13px; display: none; border-top-color: var(--ink-inverse); border-color: rgba(250,250,247,0.3); border-top-color: var(--ink-inverse); }
+  .ask-btn.running .spinner { display: block; }
   .ask-btn.running .ask-label { display: none; }
 
-  /* Divider */
-  .result-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; display: none; }
-  .result-divider.visible { display: block; }
+  /* Result surface — editorial briefing */
+  .result-area { display: none; margin-top: 56px; }
+  .result-area.visible { display: block; }
 
-  /* Summary */
-  .summary-text { font-size: 15px; line-height: 1.7; color: var(--text); margin-bottom: 20px; }
-
-  /* Priority card */
-  .priority-card { background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: 9px; padding: 16px 20px; margin-bottom: 20px; display: none; }
-  .priority-card.visible { display: block; }
-  .priority-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
-  .priority-text { font-size: 13px; line-height: 1.65; color: var(--amber-text); }
-
-  /* Context details */
-  details.context-details { margin-bottom: 16px; }
-  details.context-details > summary {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--text-dimmer); cursor: pointer; list-style: none; display: flex;
-    align-items: center; gap: 5px; padding: 8px 0; user-select: none; transition: color .12s;
+  .result-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 0 36px;
   }
-  details.context-details > summary:hover { color: var(--text-dim); }
+
+  .result-eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+  }
+
+  .summary-text {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin-bottom: 32px;
+  }
+
+  .priority-card {
+    display: none;
+    background: var(--brand-tint);
+    border: 1px solid var(--brand);
+    border-left-width: 3px;
+    padding: 18px 22px;
+    margin-bottom: 32px;
+  }
+  .priority-card.visible { display: block; }
+  .priority-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brand-deep);
+    margin-bottom: 8px;
+  }
+  .priority-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+
+  /* Context — demoted, structured */
+  details.context-details {
+    margin-bottom: 24px;
+    border-top: 1px solid var(--border);
+  }
+  details.context-details > summary {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 0;
+    user-select: none;
+    transition: color var(--t-fast);
+  }
+  details.context-details > summary:hover { color: var(--ink); }
   details.context-details > summary::-webkit-details-marker { display: none; }
-  .summary-arrow { font-size: 12px; transition: transform .15s; display: inline-block; }
+  .summary-arrow {
+    font-size: 11px;
+    transition: transform var(--t-fast);
+    display: inline-block;
+  }
   details.context-details[open] .summary-arrow { transform: rotate(90deg); }
 
-  .context-inner { padding: 16px 0 0; display: flex; flex-direction: column; gap: 16px; }
-  .ctx-section-title { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
+  .context-inner {
+    padding: 8px 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .ctx-section-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
   .ctx-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
-  .ctx-list li { font-size: 13px; color: var(--text-dim); padding: 7px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; }
-  .ctx-prose { font-size: 13px; color: var(--text-dim); line-height: 1.65; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; }
+  .ctx-list li {
+    font-size: 14px;
+    color: var(--ink);
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    line-height: 1.55;
+  }
+  .ctx-prose {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.65;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
 
-  /* Footer */
-  .result-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 8px; }
-  .conf-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
-  .conf-high   { color: #4ade80; background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.25); }
-  .conf-medium { color: #fbbf24; background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.25); }
-  .conf-low    { color: #f97316; background: rgba(249,115,22,0.08);  border: 1px solid rgba(249,115,22,0.25); }
-  .source-tags { display: flex; gap: 5px; flex-wrap: wrap; }
-  .source-tag { font-size: 10px; padding: 2px 7px; background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text-dimmer); }
+  .result-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .conf-badge {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid var(--border-strong);
+  }
+  .conf-high   { color: var(--brand-deep); border-color: var(--brand-deep); background: var(--brand-tint); }
+  .conf-medium { color: var(--warn); border-color: #D9B778; background: var(--warn-bg); }
+  .conf-low    { color: var(--danger); border-color: #E59A94; background: var(--danger-bg); }
 
-  /* Error */
-  .error-box { background: #140808; border: 1px solid #3a1a1a; border-radius: 8px; padding: 14px 18px; color: #f87171; font-size: 13px; line-height: 1.6; display: none; }
+  .source-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .source-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+
+  .error-box {
+    display: none;
+    border: 1px solid #E59A94;
+    background: var(--danger-bg);
+    color: var(--danger);
+    padding: 14px 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 36px 0;
+  }
   .error-box.visible { display: block; }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+  @media (max-width: 560px) {
+    .summary-text { font-size: 17px; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
 </head>
 <body>
 
-<div class="nav">
-  <span class="nav-brand">Daat</span>
-  <a href="/ask"     class="nav-tab active">Ask</a>
-  <a href="/connect" class="nav-tab">Connect</a>
-  <span class="nav-spacer"></span>
-  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
-</div>
+<div id="daat-shell"></div>
 
-<div class="page">
+<main class="daat-page">
 
-  <div id="askForm">
+  <header class="ask-heading">
+    <div class="eyebrow">Ask</div>
+    <h1 class="page-title">What do you need to understand?</h1>
+    <p class="lede">Describe what you want to know. Daat reads across your connected sources and returns a grounded briefing.</p>
+  </header>
 
-    <div class="form-section">
-      <label class="form-label">Intent</label>
-      <div class="intent-group" id="intentGroup">
-        <button class="intent-btn selected" data-intent="inform">Inform</button>
-        <button class="intent-btn" data-intent="decide">Decide</button>
-        <button class="intent-btn" data-intent="diagnose">Diagnose</button>
-        <button class="intent-btn" data-intent="plan">Plan</button>
+  <div class="ask-form" id="askForm">
+
+    <div>
+      <label class="field-label">Intent</label>
+      <div class="segmented" id="intentGroup">
+        <button class="segmented-btn selected" data-intent="inform">Inform</button>
+        <button class="segmented-btn" data-intent="decide">Decide</button>
+        <button class="segmented-btn" data-intent="diagnose">Diagnose</button>
+        <button class="segmented-btn" data-intent="plan">Plan</button>
       </div>
     </div>
 
-    <div class="form-section">
-      <label class="form-label" for="taskInput">What are you trying to understand?</label>
-      <textarea class="task-input" id="taskInput" placeholder="Describe what you need to know or decide…"></textarea>
+    <div>
+      <label class="field-label" for="taskInput">Your question</label>
+      <textarea class="field-textarea" id="taskInput" placeholder="e.g. Where are we on the billing migration and what is unresolved?"></textarea>
     </div>
 
-    <div class="form-section">
-      <label class="form-label" for="entitiesInput">People, topics, or systems involved <span class="label-hint">— optional</span></label>
-      <input class="entities-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
+    <div>
+      <label class="field-label" for="entitiesInput">People, topics, or systems <span class="hint">— optional</span></label>
+      <input class="field-input" id="entitiesInput" type="text" placeholder="acme, Q4 roadmap, sarah — comma separated">
     </div>
 
-    <button class="ask-btn" id="askBtn">
-      <span class="ask-label">Ask</span>
-      <span class="ask-spinner"></span>
-    </button>
+    <div class="ask-submit-row">
+      <span class="ask-submit-hint"><kbd>⌘</kbd> + <kbd>↵</kbd> to submit</span>
+      <button class="btn btn-primary ask-btn" id="askBtn">
+        <span class="ask-label">Ask Daat</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
 
   </div><!-- #askForm -->
 
-  <hr class="result-divider" id="resultDivider">
   <div class="error-box" id="errorBox"></div>
 
-  <div id="resultArea" style="display:none">
+  <div class="result-area" id="resultArea">
+    <hr class="result-divider">
+    <div class="result-eyebrow">Briefing</div>
     <p class="summary-text" id="summaryText"></p>
 
     <div class="priority-card" id="priorityCard">
@@ -181,20 +268,22 @@
     </div>
 
     <details class="context-details" id="contextDetails">
-      <summary><span class="summary-arrow">›</span> Context</summary>
+      <summary><span class="summary-arrow">›</span> Context &amp; grounding</summary>
       <div class="context-inner" id="contextInner"></div>
     </details>
 
     <div class="result-footer" id="resultFooter"></div>
   </div>
 
-</div>
+</main>
 
 <script>
 let _auth = null;
 let selectedIntent = 'inform';
 
 async function init() {
+  daatShell({ active: 'ask' });
+
   _auth = await daatGetAuth();
   if (!_auth) return;
 
@@ -209,9 +298,9 @@ async function init() {
   }
 
   document.getElementById('intentGroup').addEventListener('click', e => {
-    const btn = e.target.closest('.intent-btn');
+    const btn = e.target.closest('.segmented-btn');
     if (!btn) return;
-    document.querySelectorAll('.intent-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedIntent = btn.dataset.intent;
   });
@@ -232,13 +321,12 @@ async function ask() {
 
   const btn       = document.getElementById('askBtn');
   const errorBox  = document.getElementById('errorBox');
-  const divider   = document.getElementById('resultDivider');
   const resultArea = document.getElementById('resultArea');
 
   btn.disabled = true;
   btn.classList.add('running');
   errorBox.classList.remove('visible');
-  resultArea.style.display = 'none';
+  resultArea.classList.remove('visible');
 
   try {
     const res = await fetch(`${FN_URL}/synthesize`, {
@@ -254,10 +342,8 @@ async function ask() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || data.message || `HTTP ${res.status}`);
 
-    divider.classList.add('visible');
     renderResult(data);
   } catch (err) {
-    divider.classList.add('visible');
     errorBox.textContent = err.message;
     errorBox.classList.add('visible');
   } finally {
@@ -330,7 +416,7 @@ function renderResult(d) {
   if (d.confidence) {
     const badge = document.createElement('span');
     badge.className = `conf-badge conf-${d.confidence}`;
-    badge.textContent = d.confidence;
+    badge.textContent = `${d.confidence} confidence`;
     footer.appendChild(badge);
   }
   if (Array.isArray(d.sources) && d.sources.length > 0) {
@@ -345,7 +431,7 @@ function renderResult(d) {
     footer.appendChild(tags);
   }
 
-  document.getElementById('resultArea').style.display = '';
+  document.getElementById('resultArea').classList.add('visible');
 }
 
 init();

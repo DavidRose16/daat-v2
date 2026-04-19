@@ -4,9 +4,15 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Lab — Daat</title>
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#0f0f0f;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding-bottom:80px}
+/* Lab keeps its own dark surface — clearly an internal tool. The shared
+   light product shell still sits above it so the user can always get back
+   to the primary product. */
+body{background:#0f0f0f;color:#e5e5e5;font-family:var(--sans);min-height:100vh;padding-bottom:80px}
 
 /* ── header ── */
 .admin-header{background:#0a0a0a;border-bottom:1px solid #1e1e1e;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
@@ -151,6 +157,8 @@ select.source-select:focus{border-color:#444}
 </head>
 <body>
 
+<div id="daat-shell"></div>
+
 <div class="admin-header">
   <div class="header-left">
     <span class="header-brand">Lab</span>
@@ -163,8 +171,6 @@ select.source-select:focus{border-color:#444}
     <span class="last-refreshed" id="last-refreshed"></span>
     <span class="refresh-countdown" id="refresh-countdown"></span>
     <button class="refresh-btn" onclick="loadAll()">Refresh</button>
-    <a href="/ask" style="font-size:12px;font-weight:500;color:#444;text-decoration:none;padding:4px 12px;border:1px solid #1e1e1e;border-radius:5px;transition:color .12s,border-color .12s" onmouseover="this.style.color='#aaa';this.style.borderColor='#333'" onmouseout="this.style.color='#444';this.style.borderColor='#1e1e1e'">→ Daat</a>
-    <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
   </div>
 </div>
 
@@ -964,6 +970,7 @@ async function loadAll(){
 }
 
 async function init() {
+  daatShell({ active: 'lab' });
   _auth = await daatGetAuth();
   if (!_auth) return;
   _workspaceId = _auth.workspaceId;

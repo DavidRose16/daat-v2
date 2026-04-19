@@ -4,104 +4,84 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Welcome — Daat</title>
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg: #0f0f0f;
-  --surface: #111;
-  --border: #1e1e1e;
-  --border2: #2a2a2a;
-  --text: #e2e2e2;
-  --text-dim: #888;
-  --text-dimmer: #555;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+  .welcome-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    margin-bottom: 56px;
+  }
+  .welcome-mark {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    display: block;
+  }
+  .welcome-body {
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--ink-2);
+    max-width: 560px;
+  }
+  .welcome-body strong { color: var(--ink); font-weight: 500; }
 
-/* Thin top bar (brand + sign out) */
-.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
-.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
-.topbar-spacer { flex: 1; }
-
-/* Stepper */
-.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
-.step { display: flex; align-items: center; gap: 10px; }
-.step-dot {
-  width: 22px; height: 22px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 600;
-  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
-}
-.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
-.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
-.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
-.step.active .step-label { color: var(--text); font-weight: 600; }
-.step.done .step-label { color: #4ade80; }
-.step-divider { width: 30px; height: 1px; background: var(--border2); }
-
-/* Page */
-.page { max-width: 620px; margin: 0 auto; padding: 72px 24px 80px; text-align: center; }
-.page-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 18px; }
-.page-title { font-size: clamp(28px, 4vw, 38px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--text); margin-bottom: 20px; }
-.page-body { font-size: 15px; line-height: 1.7; color: var(--text-dim); max-width: 520px; margin: 0 auto 28px; }
-.page-body strong { color: var(--text); font-weight: 600; }
-
-/* What's next card */
-.next-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 20px 24px; margin: 8px auto 36px;
-  max-width: 520px; text-align: left;
-}
-.next-card-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 8px; }
-.next-card-text { font-size: 14px; line-height: 1.6; color: var(--text); }
-
-/* CTA */
-.cta {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 12px 28px; background: #e2e2e2; color: #0f0f0f;
-  font-size: 14px; font-weight: 600; border-radius: 8px;
-  text-decoration: none; transition: background .12s;
-  border: none; cursor: pointer;
-}
-.cta:hover { background: #fff; }
-.cta-arrow { font-size: 16px; }
+  .first-step {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 0;
+    margin: 40px 0 48px;
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 24px;
+    align-items: baseline;
+  }
+  @media (max-width: 560px) {
+    .first-step { grid-template-columns: 1fr; gap: 10px; }
+  }
+  .first-step-label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .first-step-text  { font-size: 15px; line-height: 1.65; color: var(--ink); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
 </head>
 <body>
 
-<div class="topbar">
-  <span class="topbar-brand">Daat</span>
-  <span class="topbar-spacer"></span>
-  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
-</div>
+<div id="daat-shell"></div>
 
-<div class="stepper">
-  <div class="step active"><span class="step-dot">1</span><span class="step-label">Welcome</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">2</span><span class="step-label">Connect</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">3</span><span class="step-label">Build</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">4</span><span class="step-label">Ask</span></div>
-</div>
+<main class="daat-page">
 
-<div class="page">
-  <div class="page-eyebrow">Welcome to Daat</div>
-  <h1 class="page-title">Know what's actually happening<br>in your organization.</h1>
-  <p class="page-body">Daat reads directly from the tools your team already uses — Slack, Notion, QuickBooks, Google Workspace — and turns scattered signal into <strong>clear, grounded answers</strong> about decisions, blockers, and context.</p>
+  <section class="welcome-hero">
+    <img class="welcome-mark" src="/assets/Daat-Logo.png" alt="Daat">
+    <div>
+      <div class="eyebrow" style="margin-bottom:18px">Welcome to Daat</div>
+      <h1 class="page-title">Know what's actually happening in your organization.</h1>
+    </div>
+    <p class="welcome-body">
+      Daat reads directly from the tools your team already uses — Slack, Notion, QuickBooks, Google Workspace —
+      and turns scattered signal into <strong>clear, grounded answers</strong> about decisions, blockers, and context.
+    </p>
+  </section>
 
-  <div class="next-card">
-    <div class="next-card-label">First step</div>
-    <div class="next-card-text">Connect the sources you want Daat to learn from. You choose which ones — Daat only reads what you grant access to.</div>
+  <div class="first-step">
+    <div class="first-step-label">First step</div>
+    <div class="first-step-text">
+      Connect the sources you want Daat to learn from. You choose which ones &mdash; Daat only reads what you grant access to.
+    </div>
   </div>
 
-  <button id="ctaBtn" class="cta">Connect your sources <span class="cta-arrow">→</span></button>
-</div>
+  <button id="ctaBtn" class="btn btn-primary">
+    Connect your sources <span class="btn-arrow">→</span>
+  </button>
+
+</main>
 
 <script>
 (async () => {
+  daatShell({ inFlow: true });
   const auth = await daatGetAuth();
   if (!auth) return;
 

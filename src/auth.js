@@ -63,9 +63,28 @@ function daatSignOut() {
   });
 }
 
-// Inject sign-out button styles so each page doesn't need to duplicate them.
-(function () {
-  const s = document.createElement('style');
-  s.textContent = '.daat-signout{margin-left:auto;background:transparent;border:none;font-size:12px;font-weight:500;padding:12px 16px;color:#555;cursor:pointer;letter-spacing:.02em;transition:color .12s;white-space:nowrap}.daat-signout:hover{color:#888}';
-  document.head.appendChild(s);
-}());
+// Render the shared signed-in top bar. Pages place <div id="daat-shell"></div>
+// and call daatShell({ active, inFlow }) early.
+//   active: 'ask' | 'connect' | 'lab' | null   — highlights the matching nav link
+//   inFlow: boolean                            — hides nav links during onboarding
+function daatShell({ active = null, inFlow = false } = {}) {
+  const mount = document.getElementById('daat-shell');
+  if (!mount) return;
+  const cls = (k) => 'daat-nav-link' + (active === k ? ' active' : '');
+  mount.outerHTML = `
+    <header class="daat-topbar${inFlow ? ' in-flow' : ''}">
+      <a class="daat-brand" href="/ask" aria-label="Daat home">
+        <img class="daat-brand-mark" src="/assets/Daat-Logo.png" alt="">
+        <span class="daat-brand-word">Daat</span>
+      </a>
+      <nav class="daat-nav" aria-label="Primary">
+        <a class="${cls('ask')}"      href="/ask">Ask</a>
+        <a class="${cls('connect')}"  href="/connect">Connect</a>
+        <a class="${cls('lab')} demoted" href="/lab">Lab</a>
+      </nav>
+      <div class="daat-topbar-right">
+        <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
+      </div>
+    </header>
+  `;
+}

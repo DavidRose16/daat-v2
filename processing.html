@@ -3,209 +3,147 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Building your workspace — Daat</title>
+<title>Preparing your workspace — Daat</title>
+<link rel="icon" href="/assets/Daat-Logo.png" type="image/png">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="/assets/daat-ui.css">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg: #0f0f0f;
-  --surface: #111;
-  --border: #1e1e1e;
-  --border2: #2a2a2a;
-  --text: #e2e2e2;
-  --text-dim: #888;
-  --text-dimmer: #555;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
+  .proc-heading { margin-bottom: 44px; }
+  .proc-heading .eyebrow { margin-bottom: 16px; }
+  .proc-heading h1 { margin-bottom: 12px; }
 
-.topbar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); }
-.topbar-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
-.topbar-spacer { flex: 1; }
+  /* Source list — editorial rows, not fat cards */
+  .source-list { display: flex; flex-direction: column; margin-bottom: 48px; }
+  .source-row {
+    display: flex; align-items: center; gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .source-row:first-child { border-top: 1px solid var(--border); }
 
-.stepper { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 0; flex-wrap: wrap; }
-.step { display: flex; align-items: center; gap: 10px; }
-.step-dot {
-  width: 22px; height: 22px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 600;
-  background: #1a1a1a; color: var(--text-dimmer); border: 1px solid var(--border2);
-}
-.step.active .step-dot { background: #e2e2e2; color: #0f0f0f; border-color: #e2e2e2; }
-.step.done   .step-dot { background: #0d2b1a; color: #4ade80; border-color: #1a4d2e; }
-.step-label { font-size: 11px; color: var(--text-dimmer); letter-spacing: 0.02em; }
-.step.active .step-label { color: var(--text); font-weight: 600; }
-.step.done .step-label { color: #4ade80; }
-.step-divider { width: 30px; height: 1px; background: var(--border2); }
+  .source-meta { flex: 1; min-width: 0; }
+  .source-name { font-size: 15px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
+  .source-status { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
+  .source-status.ok  { color: var(--brand-deep); }
+  .source-status.err { color: var(--danger); }
 
-.page { max-width: 680px; margin: 0 auto; padding: 48px 24px 120px; }
-.page-heading { margin-bottom: 28px; text-align: center; }
-.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; color: var(--text); margin-bottom: 10px; }
-.page-sub { font-size: 13px; color: var(--text-dim); line-height: 1.65; max-width: 480px; margin: 0 auto; }
+  .source-indicator { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 20px; }
+  .check-mark { color: var(--brand-deep); font-size: 16px; font-weight: 500; line-height: 1; }
+  .cross-mark { color: var(--danger); font-size: 16px; font-weight: 500; line-height: 1; }
 
-/* Ingest rows */
-.source-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
-.source-row {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 16px 20px;
-  display: flex; align-items: center; gap: 14px;
-}
-.source-row.done { border-color: #1a3a1a; }
-.source-row.err  { border-color: #3a1a1a; }
-.source-icon {
-  width: 28px; height: 28px; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
-  background: #1a1a1a; color: var(--text);
-}
-.source-meta { flex: 1; min-width: 0; }
-.source-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-.source-status { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
-.source-status.ok { color: #4ade80; }
-.source-status.err { color: #f87171; }
+  /* Build panel — minimal, calm, premium */
+  .build-panel { border-top: 2px solid var(--ink); padding-top: 24px; margin-bottom: 32px; }
+  .build-panel.phase-hidden { display: none; }
 
-.spinner {
-  width: 14px; height: 14px; border: 2px solid #333;
-  border-top-color: var(--text-dim); border-radius: 50%;
-  animation: spin .7s linear infinite; flex-shrink: 0;
-}
-.check { color: #4ade80; font-size: 16px; font-weight: 700; flex-shrink: 0; }
-.cross { color: #f87171; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+  .build-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; margin-bottom: 14px;
+  }
+  .build-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .build-count {
+    font-size: 14px; font-weight: 500; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+  }
 
-/* Build panel */
-.panel {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 24px 26px;
-  margin-bottom: 20px;
-}
-.panel.success { border-color: #1a4d2e; background: #0a140a; }
-.progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.progress-label { font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.02em; }
-.progress-count { font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.progress-bar { width: 100%; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #4ade80 0%, #60c8f8 100%); width: 0%; transition: width .4s ease; }
-.phase-text { font-size: 13px; color: var(--text-dim); line-height: 1.6; display: flex; align-items: center; gap: 10px; }
-.phase-spinner { width: 12px; height: 12px; border: 2px solid #333; border-top-color: var(--text-dim); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  .phase-text {
+    font-size: 14px; color: var(--ink-2); line-height: 1.55;
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 20px;
+  }
+  .phase-hidden { display: none !important; }
+  .phase-error-glyph {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    background: var(--danger-bg); color: var(--danger);
+    font-size: 12px; font-weight: 600;
+    border: 1px solid #E59A94;
+    flex-shrink: 0;
+  }
 
-/* Success */
-.success-check {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: #0d2b1a; border: 1px solid #1a4d2e; color: #4ade80;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; font-weight: 700; margin: 0 auto 16px;
-}
-.success-title { font-size: 18px; font-weight: 700; color: #4ade80; margin-bottom: 8px; text-align: center; }
-.success-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; text-align: center; }
+  /* Success surface */
+  .success-panel {
+    border: 1px solid var(--brand);
+    border-top: 2px solid var(--brand-deep);
+    background: var(--surface);
+    padding: 40px 36px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .success-eyebrow {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--brand-deep);
+  }
+  .success-title {
+    font-size: 24px; font-weight: 500; letter-spacing: -0.012em;
+    line-height: 1.25; color: var(--ink);
+  }
+  .success-body { font-size: 15px; line-height: 1.65; color: var(--ink-2); }
 
-/* Continue bar */
-.continue-bar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: rgba(15,15,15,0.94); backdrop-filter: blur(8px);
-  border-top: 1px solid var(--border);
-  padding: 14px 24px;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-}
-.continue-status { font-size: 12px; color: var(--text-dimmer); }
-.continue-status.ready { color: #4ade80; }
-.continue-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 11px 24px; background: #e2e2e2; color: #0f0f0f;
-  font-size: 13px; font-weight: 600; border-radius: 8px;
-  border: none; cursor: pointer; transition: background .12s, opacity .12s;
-}
-.continue-btn:hover:not(:disabled) { background: #fff; }
-.continue-btn:disabled { opacity: .35; cursor: not-allowed; }
-
-.secondary-link {
-  background: transparent; border: none; color: var(--text-dimmer);
-  font-size: 12px; cursor: pointer; padding: 6px 10px; margin-right: 4px;
-  transition: color .12s;
-}
-.secondary-link:hover { color: var(--text-dim); }
-
-.error-box {
-  display: none;
-  background: #1a0808; border: 1px solid #4d1a1a;
-  color: #f87171; padding: 14px 18px; border-radius: 8px;
-  font-size: 13px; line-height: 1.6;
-}
-.error-box.visible { display: block; }
-
-.phase-error-glyph {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: #3a1a1a; color: #f87171;
-  font-size: 11px; font-weight: 700; flex-shrink: 0;
-}
-
-.phase-hidden { display: none !important; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+  .error-box {
+    display: none;
+    border: 1px solid #E59A94;
+    background: var(--danger-bg);
+    color: var(--danger);
+    padding: 14px 18px;
+    font-size: 14px; line-height: 1.55;
+    margin-top: 20px;
+  }
+  .error-box.visible { display: block; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/src/auth.js"></script>
 </head>
 <body>
 
-<div class="topbar">
-  <span class="topbar-brand">Daat</span>
-  <span class="topbar-spacer"></span>
-  <button class="daat-signout" onclick="daatSignOut()">Sign out</button>
-</div>
+<div id="daat-shell"></div>
 
-<div class="stepper">
-  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Welcome</span></div>
-  <div class="step-divider"></div>
-  <div class="step done"><span class="step-dot">✓</span><span class="step-label">Connect</span></div>
-  <div class="step-divider"></div>
-  <div class="step active"><span class="step-dot">3</span><span class="step-label">Build</span></div>
-  <div class="step-divider"></div>
-  <div class="step"><span class="step-dot">4</span><span class="step-label">Ask</span></div>
-</div>
+<main class="daat-page">
 
-<div class="page">
-
-  <div class="page-heading">
-    <div class="page-title" id="pageTitle">Building your workspace</div>
-    <p class="page-sub" id="pageSub">Daat is reading from the sources you connected and organizing the material into a workspace it can reason over. This usually takes a minute.</p>
-  </div>
+  <header class="proc-heading">
+    <div class="eyebrow" id="pageEyebrow">Preparing your workspace</div>
+    <h1 class="page-title" id="pageTitle">Daat is reading your material</h1>
+    <p class="lede" id="pageSub">Pulling in what you connected and organizing it into a workspace Daat can reason over. This usually takes a minute.</p>
+  </header>
 
   <!-- Phase 1: ingest rows -->
-  <div class="source-list" id="sourceList"></div>
+  <section class="source-list" id="sourceList"></section>
 
   <!-- Phase 2: comprehension progress -->
-  <div class="panel phase-hidden" id="buildPanel">
-    <div class="progress-header">
-      <span class="progress-label">Comprehension progress</span>
-      <span class="progress-count" id="progressCount">0 / 0</span>
+  <section class="build-panel phase-hidden" id="buildPanel">
+    <div class="build-header">
+      <span class="build-label">Comprehension</span>
+      <span class="build-count" id="progressCount">0 / 0</span>
     </div>
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-rail"><div class="progress-fill" id="progressFill"></div></div>
     <div class="phase-text" id="phaseText">
-      <span class="phase-spinner"></span>
+      <span class="spinner"></span>
       <span>Starting…</span>
     </div>
-  </div>
+  </section>
 
   <div class="error-box" id="errorBox"></div>
-</div>
+</main>
 
-<div class="continue-bar">
-  <span class="continue-status" id="continueStatus">Preparing your workspace…</span>
-  <div style="display:flex;align-items:center;gap:4px;">
-    <button class="secondary-link" id="secondaryBtn" style="display:none"></button>
-    <button class="continue-btn" id="continueBtn" disabled>
-      <span id="continueLabel">Enter Daat</span><span id="continueArrow">→</span>
+<div class="action-bar">
+  <span class="action-bar-status" id="continueStatus">Preparing your workspace…</span>
+  <div class="action-bar-right">
+    <button class="btn btn-ghost" id="secondaryBtn" style="display:none"></button>
+    <button class="btn btn-primary" id="continueBtn" disabled>
+      <span id="continueLabel">Enter Daat</span>
+      <span class="btn-arrow" id="continueArrow">→</span>
     </button>
   </div>
 </div>
 
 <script>
 const INGEST_SOURCES = [
-  { key: 'slack',      table: 'connections_slack',      label: 'Slack',             color: '#38bdf8', ingestFn: 'slack-ingest'      },
-  { key: 'notion',     table: 'connections_notion',     label: 'Notion',            color: '#a78bfa', ingestFn: 'notion-ingest'     },
-  { key: 'quickbooks', table: 'connections_quickbooks', label: 'QuickBooks',        color: '#4ade80', ingestFn: 'quickbooks-ingest' },
-  { key: 'google',     table: 'connections_google',     label: 'Google Workspace',  color: '#fb923c', ingestFn: 'google-ingest'     },
+  { key: 'slack',      table: 'connections_slack',      label: 'Slack',             ingestFn: 'slack-ingest'      },
+  { key: 'notion',     table: 'connections_notion',     label: 'Notion',            ingestFn: 'notion-ingest'     },
+  { key: 'quickbooks', table: 'connections_quickbooks', label: 'QuickBooks',        ingestFn: 'quickbooks-ingest' },
+  { key: 'google',     table: 'connections_google',     label: 'Google Workspace',  ingestFn: 'google-ingest'     },
 ];
 
 // Sources that produce comprehensions (excludes google = access).
@@ -221,7 +159,7 @@ function esc(s) { return s == null ? '' : String(s).replace(/&/g, '&amp;').repla
 function setPhase(text, withSpinner = true) {
   const el = document.getElementById('phaseText');
   el.innerHTML = withSpinner
-    ? `<span class="phase-spinner"></span><span>${esc(text)}</span>`
+    ? `<span class="spinner"></span><span>${esc(text)}</span>`
     : `<span>${esc(text)}</span>`;
 }
 
@@ -234,12 +172,12 @@ function setProgress(done, total) {
 function renderSourceRow(source, state, detail) {
   const row = document.getElementById(`row-${source.key}`);
   if (!row) return;
-  row.className = `source-row ${state === 'done' ? 'done' : state === 'error' ? 'err' : ''}`;
+  row.className = `source-row`;
   const indicator =
-    state === 'running' ? '<div class="spinner"></div>' :
-    state === 'done'    ? '<span class="check">✓</span>' :
-    state === 'error'   ? '<span class="cross">×</span>' :
-    '<div class="spinner" style="opacity:.25"></div>';
+    state === 'running' ? '<span class="spinner"></span>' :
+    state === 'done'    ? '<span class="check-mark">✓</span>' :
+    state === 'error'   ? '<span class="cross-mark">×</span>' :
+    '<span class="spinner" style="opacity:.3"></span>';
   const statusText =
     state === 'waiting' ? 'Queued' :
     state === 'running' ? 'Reading…' :
@@ -248,21 +186,15 @@ function renderSourceRow(source, state, detail) {
     '';
   const statusClass = state === 'done' ? 'ok' : state === 'error' ? 'err' : '';
   row.innerHTML = `
-    <div class="source-icon" style="color:${source.color}">${source.label[0]}</div>
     <div class="source-meta">
       <div class="source-name">${esc(source.label)}</div>
       <div class="source-status ${statusClass}">${esc(statusText)}</div>
     </div>
-    ${indicator}
+    <div class="source-indicator">${indicator}</div>
   `;
 }
 
-// headline is what to put in the phase-text line (e.g. "Build failed on Slack.").
-// detail is the full technical message for the error box (e.g. "Slack: HTTP 401").
-// allowRetry controls whether the primary CTA becomes "Retry"; Back to Connect
-// is always offered as a secondary action.
 function showError(headline, detail, { allowRetry = true } = {}) {
-  // Stop the spinner and re-paint the phase line in an error state.
   const phaseEl = document.getElementById('phaseText');
   if (phaseEl) {
     phaseEl.innerHTML = `<span class="phase-error-glyph">!</span><span>${esc(headline)}</span>`;
@@ -272,7 +204,6 @@ function showError(headline, detail, { allowRetry = true } = {}) {
   box.textContent = detail;
   box.classList.add('visible');
 
-  // Re-theme the continue bar for recovery.
   const status    = document.getElementById('continueStatus');
   const btn       = document.getElementById('continueBtn');
   const label     = document.getElementById('continueLabel');
@@ -280,7 +211,7 @@ function showError(headline, detail, { allowRetry = true } = {}) {
   const secondary = document.getElementById('secondaryBtn');
 
   status.textContent = headline;
-  status.className = 'continue-status';
+  status.className = 'action-bar-status';
 
   if (allowRetry) {
     label.textContent = 'Retry';
@@ -299,26 +230,25 @@ function showError(headline, detail, { allowRetry = true } = {}) {
 }
 
 async function showSuccessAndAdvance(totalBuilt) {
-  // Mark workspace ready — idempotent if already ready.
-  try { await daatSetOnboardingState(_auth, 'ready'); } catch (_) { /* swallow — we're about to route anyway */ }
+  try { await daatSetOnboardingState(_auth, 'ready'); } catch (_) { /* proceed */ }
 
-  // Hide ingest rows (they were phase 1), swap build panel to success.
   document.getElementById('sourceList').classList.add('phase-hidden');
   const panel = document.getElementById('buildPanel');
   panel.classList.remove('phase-hidden');
-  panel.className = 'panel success';
+  panel.className = 'success-panel';
   panel.innerHTML = `
-    <div class="success-check">✓</div>
-    <div class="success-title">Your workspace is ready</div>
+    <div class="success-eyebrow">Workspace ready</div>
+    <div class="success-title">Your workspace is prepared.</div>
     <div class="success-body">Daat has read and organized ${totalBuilt.toLocaleString()} item${totalBuilt !== 1 ? 's' : ''}. You can now ask it questions about your organization.</div>
   `;
-  document.getElementById('pageTitle').textContent = 'Workspace ready';
+  document.getElementById('pageEyebrow').textContent = 'Complete';
+  document.getElementById('pageTitle').textContent = 'Your workspace is ready';
   document.getElementById('pageSub').textContent = "You're all set.";
 
   const status = document.getElementById('continueStatus');
   const btn = document.getElementById('continueBtn');
   status.textContent = 'Workspace built.';
-  status.className = 'continue-status ready';
+  status.className = 'action-bar-status ok';
   btn.disabled = false;
 
   setTimeout(() => { window.location.href = '/ask'; }, 1800);
@@ -385,9 +315,6 @@ async function phaseIngest() {
   list.innerHTML = connected.map(s => `<div class="source-row" id="row-${s.key}"></div>`).join('');
   connected.forEach(s => renderSourceRow(s, 'waiting'));
 
-  // Per-source ingest: only ingest sources that have zero signals so far.
-  // A rebuild (ready → processing) will ingest any newly-connected source while
-  // skipping ones already imported. Fresh onboarding naturally ingests everything.
   const perSourceCounts = await Promise.all(connected.map(s => countSignalsForSource(s.key)));
   const toIngest = connected.filter((_, i) => perSourceCounts[i] === 0);
   connected.forEach((s, i) => {
@@ -395,7 +322,6 @@ async function phaseIngest() {
   });
 
   if (toIngest.length === 0) {
-    // Nothing new to ingest — fine, proceed to build phase.
     return { ok: true, connected };
   }
 
@@ -475,7 +401,7 @@ async function phaseBuild() {
     let sourcePending = await countAssembly({ source, pendingOnly: true });
     if (sourcePending === 0) continue;
 
-    setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
+    setPhase(`Reading ${SOURCE_LABEL[source]} — ${total - pendingAll} of ${total} complete.`);
     let consecutiveNoProgress = 0;
 
     while (sourcePending > 0) {
@@ -503,7 +429,7 @@ async function phaseBuild() {
 
         sourcePending = newSourcePending;
         if (sourcePending > 0) {
-          setPhase(`Reading ${SOURCE_LABEL[source]}… ${total - pendingAll} of ${total} complete.`);
+          setPhase(`Reading ${SOURCE_LABEL[source]} — ${total - pendingAll} of ${total} complete.`);
         }
       } catch (e) {
         showError(`Build failed on ${SOURCE_LABEL[source]}.`, `${SOURCE_LABEL[source]}: ${e.message}`);
@@ -521,13 +447,11 @@ async function phaseBuild() {
 // ---------- Controller ----------
 
 async function init() {
+  daatShell({ inFlow: true });
+
   _auth = await daatGetAuth();
   if (!_auth) return;
 
-  // Guard: welcome users haven't chosen anything yet — send them back to start.
-  // Ready users arriving here are running a user-initiated rebuild (Connect page's
-  // Rebuild CTA sets state=processing before navigating here). We accept them and
-  // re-assert state=processing below in case the transition write didn't land.
   if (_auth.onboardingState === 'welcome') {
     window.location.replace('/welcome');
     return;
@@ -541,20 +465,21 @@ async function init() {
 
   document.getElementById('continueBtn').onclick = () => { window.location.href = '/ask'; };
 
-  // Ensure state reflects reality: we are actively processing.
   if (_auth.onboardingState !== 'processing') {
     try { await daatSetOnboardingState(_auth, 'processing'); } catch (_) { /* proceed */ }
   }
 
   // Phase 1: ingest
-  document.getElementById('pageTitle').textContent = 'Reading your material';
-  document.getElementById('pageSub').textContent = 'Daat is pulling in data from each connected source.';
+  document.getElementById('pageEyebrow').textContent = 'Reading';
+  document.getElementById('pageTitle').textContent = 'Daat is reading your material';
+  document.getElementById('pageSub').textContent = 'Pulling data from each connected source.';
   const ingestResult = await phaseIngest();
   if (!ingestResult.ok) return;
 
   // Phase 2: build
-  document.getElementById('pageTitle').textContent = 'Building your workspace';
-  document.getElementById('pageSub').textContent = 'Daat is organizing the material into a unified workspace it can reason over.';
+  document.getElementById('pageEyebrow').textContent = 'Building';
+  document.getElementById('pageTitle').textContent = 'Organizing your workspace';
+  document.getElementById('pageSub').textContent = 'Turning what was read into a unified workspace Daat can reason over.';
   await phaseBuild();
 }
 init();
